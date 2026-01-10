@@ -1,0 +1,12 @@
+# Excel 数据文件
+*.xls
+*.xlsx
+
+# macOS
+.DS_Store
+
+# 部署文件夹
+dist/
+
+# Claude
+.claude/

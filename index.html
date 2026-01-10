@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网吧数据分析系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>网吧数据分析系统</h1>
+            <p class="subtitle">上机情况可视化分析</p>
+            <div class="db-status" id="dbStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">连接数据库中...</span>
+            </div>
+        </header>
+
+        <!-- 操作区域 -->
+        <section class="action-section">
+            <!-- 数据源切换 -->
+            <div class="data-source-tabs">
+                <button class="tab-btn active" data-source="database" id="tabDatabase">
+                    <span class="tab-icon">🗄️</span> 数据库数据
+                </button>
+                <button class="tab-btn" data-source="upload" id="tabUpload">
+                    <span class="tab-icon">📤</span> 上传新数据
+                </button>
+            </div>
+
+            <!-- 数据库数据面板 -->
+            <div class="panel" id="databasePanel">
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <label>开始日期</label>
+                        <input type="date" id="startDate" />
+                    </div>
+                    <div class="filter-item">
+                        <label>结束日期</label>
+                        <input type="date" id="endDate" />
+                    </div>
+                    <button class="btn btn-primary" id="loadDataBtn">
+                        <span>📊</span> 加载数据
+                    </button>
+                    <button class="btn btn-secondary" id="loadAllBtn">
+                        <span>📂</span> 加载全部
+                    </button>
+                </div>
+                <div class="db-info" id="dbInfo"></div>
+            </div>
+
+            <!-- 上传数据面板 -->
+            <div class="panel hidden" id="uploadPanel">
+                <div class="upload-box" id="uploadBox">
+                    <input type="file" id="fileInput" accept=".xls,.xlsx" />
+                    <div class="upload-hint">
+                        <span class="upload-icon">📁</span>
+                        <p>点击或拖拽上传 Excel 文件（上机明细）</p>
+                        <p class="file-types">支持 .xls, .xlsx 格式</p>
+                    </div>
+                </div>
+                <div id="fileInfo" class="file-info hidden"></div>
+                <div id="uploadActions" class="upload-actions hidden">
+                    <button class="btn btn-primary" id="saveToDbBtn">
+                        <span>💾</span> 保存到数据库
+                    </button>
+                    <button class="btn btn-secondary" id="previewOnlyBtn">
+                        <span>👁️</span> 仅预览不保存
+                    </button>
+                </div>
+                <div id="uploadProgress" class="upload-progress hidden">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">准备上传...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 数据概览卡片 -->
+        <section class="stats-overview hidden" id="statsOverview">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalRecords">-</div>
+                    <div class="stat-label">总上机人次</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalRevenue">-</div>
+                    <div class="stat-label">总收入</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="dateRange">-</div>
+                    <div class="stat-label">数据时间范围</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👤</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="avgSpend">-</div>
+                    <div class="stat-label">人均消费</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 图表区域 -->
+        <section class="charts-section hidden" id="chartsSection">
+            <!-- 第一行：日营收趋势 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>每日营收与上机人次趋势</h3>
+                    <div id="dailyTrendChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第二行：时间分布 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>24小时上机分布</h3>
+                    <div id="hourlyChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>星期分布</h3>
+                    <div id="weekdayChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第三行：会员和区域 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>会员类型分布</h3>
+                    <div id="memberTypeChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>区域分布</h3>
+                    <div id="areaChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第四行：年龄和套餐 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>用户年龄分布</h3>
+                    <div id="ageChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>上机类型与套餐分布</h3>
+                    <div id="packageChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第五行：热力图 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>一周24小时热力图</h3>
+                    <div id="heatmapChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+
+            <!-- 第六行：结账方式和收入构成 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>结账方式分布</h3>
+                    <div id="paymentChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>收入构成（本金 vs 赠送）</h3>
+                    <div id="revenueTypeChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第七行：TOP用户 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>TOP 20 高频用户</h3>
+                    <div id="topUsersChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
