@@ -7,6 +7,10 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -20,66 +24,73 @@
             </div>
         </header>
 
-        <!-- 操作区域 -->
-        <section class="action-section">
-            <!-- 数据源切换 -->
-            <div class="data-source-tabs">
-                <button class="tab-btn active" data-source="database" id="tabDatabase">
-                    <span class="tab-icon">🗄️</span> 数据库数据
-                </button>
-                <button class="tab-btn" data-source="upload" id="tabUpload">
-                    <span class="tab-icon">📤</span> 上传新数据
-                </button>
+        <!-- 日历选择区域 -->
+        <section class="calendar-section" id="calendarSection">
+            <div class="calendar-header">
+                <h2>选择日期查看数据</h2>
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
+                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
+                </div>
             </div>
-
-            <!-- 数据库数据面板 -->
-            <div class="panel" id="databasePanel">
-                <div class="filter-row">
-                    <div class="filter-item">
-                        <label>开始日期</label>
-                        <input type="date" id="startDate" />
-                    </div>
-                    <div class="filter-item">
-                        <label>结束日期</label>
-                        <input type="date" id="endDate" />
-                    </div>
-                    <button class="btn btn-primary" id="loadDataBtn">
-                        <span>📊</span> 加载数据
-                    </button>
-                    <button class="btn btn-secondary" id="loadAllBtn">
-                        <span>📂</span> 加载全部
-                    </button>
+            <div class="calendar-container">
+                <div class="calendar-wrapper">
+                    <input type="text" id="datePicker" placeholder="点击选择日期范围..." readonly>
                 </div>
-                <div class="db-info" id="dbInfo"></div>
+                <div class="date-info" id="dateInfo">
+                    <div class="selected-range" id="selectedRange">请选择日期</div>
+                    <div class="range-stats" id="rangeStats"></div>
+                </div>
             </div>
-
-            <!-- 上传数据面板 -->
-            <div class="panel hidden" id="uploadPanel">
-                <div class="upload-box" id="uploadBox">
-                    <input type="file" id="fileInput" accept=".xls,.xlsx" />
-                    <div class="upload-hint">
-                        <span class="upload-icon">📁</span>
-                        <p>点击或拖拽上传 Excel 文件（上机明细）</p>
-                        <p class="file-types">支持 .xls, .xlsx 格式</p>
-                    </div>
-                </div>
-                <div id="fileInfo" class="file-info hidden"></div>
-                <div id="uploadActions" class="upload-actions hidden">
-                    <button class="btn btn-primary" id="saveToDbBtn">
-                        <span>💾</span> 保存到数据库
-                    </button>
-                    <button class="btn btn-secondary" id="previewOnlyBtn">
-                        <span>👁️</span> 仅预览不保存
-                    </button>
-                </div>
-                <div id="uploadProgress" class="upload-progress hidden">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
-                    <div class="progress-text" id="progressText">准备上传...</div>
-                </div>
+            <div class="calendar-actions">
+                <button class="btn btn-primary" id="loadSelectedBtn" disabled>
+                    <span>📊</span> 加载选中日期数据
+                </button>
+                <button class="btn btn-secondary" id="loadAllBtn">
+                    <span>📂</span> 加载全部数据
+                </button>
+                <button class="btn btn-secondary" id="showUploadBtn">
+                    <span>📤</span> 上传新数据
+                </button>
             </div>
         </section>
+
+        <!-- 上传数据面板（默认隐藏） -->
+        <section class="upload-section hidden" id="uploadSection">
+            <div class="section-header">
+                <h2>上传数据</h2>
+                <button class="btn-close" id="closeUploadBtn">&times;</button>
+            </div>
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="fileInput" accept=".xls,.xlsx" />
+                <div class="upload-hint">
+                    <span class="upload-icon">📁</span>
+                    <p>点击或拖拽上传 Excel 文件（上机明细）</p>
+                    <p class="file-types">支持 .xls, .xlsx 格式</p>
+                </div>
+            </div>
+            <div id="fileInfo" class="file-info hidden"></div>
+            <div id="uploadActions" class="upload-actions hidden">
+                <button class="btn btn-primary" id="saveToDbBtn">
+                    <span>💾</span> 保存到数据库
+                </button>
+                <button class="btn btn-secondary" id="previewOnlyBtn">
+                    <span>👁️</span> 仅预览不保存
+                </button>
+            </div>
+            <div id="uploadProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">准备上传...</div>
+            </div>
+        </section>
+
+        <!-- 加载提示 -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载数据中...</div>
+        </div>
 
         <!-- 数据概览卡片 -->
         <section class="stats-overview hidden" id="statsOverview">
