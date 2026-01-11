@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 小妖电竞联盟</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Login Modal Styles */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-overlay.hidden {
+            display: none;
+        }
+        .login-box {
+            background: linear-gradient(135deg, rgba(18, 18, 26, 0.95) 0%, rgba(10, 10, 15, 0.98) 100%);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 24px;
+            padding: 50px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(0, 240, 255, 0.1), 0 0 120px rgba(255, 0, 170, 0.05);
+        }
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #00f0ff 0%, #ff00aa 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: #0a0a0f;
+            margin: 0 auto 30px;
+        }
+        .login-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        .login-subtitle {
+            color: #a0a0b0;
+            margin-bottom: 40px;
+            font-size: 0.95rem;
+        }
+        .login-input {
+            width: 100%;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .login-input:focus {
+            outline: none;
+            border-color: rgba(0, 240, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+        .login-input::placeholder {
+            color: #6b6b7a;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #00f0ff 0%, #ff00aa 100%);
+            border: none;
+            border-radius: 12px;
+            color: #0a0a0f;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+        }
+        .login-error {
+            color: #ff4757;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            display: none;
+        }
+        .login-error.show {
+            display: block;
+        }
+        .login-home {
+            margin-top: 30px;
+        }
+        .login-home a {
+            color: #6b6b7a;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+        .login-home a:hover {
+            color: #00f0ff;
+        }
+        /* Dashboard header styles */
+        .dashboard-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .nav-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0aec0;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .nav-back:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #00f0ff;
+        }
+        .nav-logout {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0aec0;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        .nav-logout:hover {
+            background: rgba(255, 71, 87, 0.1);
+            border-color: rgba(255, 71, 87, 0.3);
+            color: #ff4757;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <div class="login-logo">XY</div>
+            <h1 class="login-title">管理后台</h1>
+            <p class="login-subtitle">请输入管理员密码登录</p>
+            <form id="loginForm">
+                <input type="password" class="login-input" id="passwordInput" placeholder="请输入密码" autocomplete="current-password">
+                <button type="submit" class="login-btn">登 录</button>
+                <p class="login-error" id="loginError">密码错误，请重试</p>
+            </form>
+            <div class="login-home">
+                <a href="index.html">&larr; 返回首页</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Dashboard Navigation -->
+        <div class="dashboard-nav">
+            <a href="index.html" class="nav-back">
+                <span>&larr;</span> 返回首页
+            </a>
+            <button class="nav-logout" id="logoutBtn">
+                <span>退出登录</span>
+            </button>
+        </div>
+
+        <header>
+            <h1>数据分析仪表板</h1>
+            <p class="subtitle">上机情况与商品销售可视化分析</p>
+            <div class="db-status" id="dbStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">连接数据库中...</span>
+            </div>
+        </header>
+
+        <!-- 数据类型切换标签 -->
+        <div class="data-tabs">
+            <button class="tab-btn active" data-tab="session">上机数据</button>
+            <button class="tab-btn" data-tab="product">商品销售</button>
+        </div>
+
+        <!-- ========== 上机数据区域 ========== -->
+        <div class="tab-content active" id="sessionTab">
+
+        <!-- 日历选择区域 -->
+        <section class="calendar-section" id="calendarSection">
+            <div class="calendar-header">
+                <h2>选择日期查看数据</h2>
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
+                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
+                </div>
+            </div>
+            <div class="calendar-container">
+                <div class="calendar-wrapper">
+                    <input type="text" id="datePicker" placeholder="点击选择日期范围..." readonly>
+                </div>
+                <div class="date-info" id="dateInfo">
+                    <div class="selected-range" id="selectedRange">请选择日期</div>
+                    <div class="range-stats" id="rangeStats"></div>
+                </div>
+            </div>
+            <div class="calendar-actions">
+                <button class="btn btn-primary" id="loadSelectedBtn" disabled>
+                    <span>📊</span> 加载选中日期数据
+                </button>
+                <button class="btn btn-secondary" id="loadAllBtn">
+                    <span>📂</span> 加载全部数据
+                </button>
+                <button class="btn btn-secondary" id="showUploadBtn">
+                    <span>📤</span> 上传新数据
+                </button>
+            </div>
+        </section>
+
+        <!-- 上传数据面板（默认隐藏） -->
+        <section class="upload-section hidden" id="uploadSection">
+            <div class="section-header">
+                <h2>上传数据</h2>
+                <button class="btn-close" id="closeUploadBtn">&times;</button>
+            </div>
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="fileInput" accept=".xls,.xlsx" />
+                <div class="upload-hint">
+                    <span class="upload-icon">📁</span>
+                    <p>点击或拖拽上传 Excel 文件（上机明细）</p>
+                    <p class="file-types">支持 .xls, .xlsx 格式</p>
+                </div>
+            </div>
+            <div id="fileInfo" class="file-info hidden"></div>
+            <div id="uploadActions" class="upload-actions hidden">
+                <button class="btn btn-primary" id="saveToDbBtn">
+                    <span>💾</span> 保存到数据库
+                </button>
+                <button class="btn btn-secondary" id="previewOnlyBtn">
+                    <span>👁️</span> 仅预览不保存
+                </button>
+            </div>
+            <div id="uploadProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">准备上传...</div>
+            </div>
+        </section>
+
+        <!-- 加载提示 -->
+        <div class="loading-overlay hidden" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载数据中...</div>
+        </div>
+
+        <!-- 数据概览卡片 -->
+        <section class="stats-overview hidden" id="statsOverview">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalRecords">-</div>
+                    <div class="stat-label">总上机人次</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalRevenue">-</div>
+                    <div class="stat-label">总收入</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="dateRange">-</div>
+                    <div class="stat-label">数据时间范围</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👤</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="avgSpend">-</div>
+                    <div class="stat-label">人均消费</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 图表区域 -->
+        <section class="charts-section hidden" id="chartsSection">
+            <!-- 第一行：日营收趋势 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>每日营收与上机人次趋势</h3>
+                    <div id="dailyTrendChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第二行：时间分布 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>24小时上机分布</h3>
+                    <div id="hourlyChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>星期分布</h3>
+                    <div id="weekdayChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第三行：会员和区域 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>会员类型分布</h3>
+                    <div id="memberTypeChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>区域分布</h3>
+                    <div id="areaChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第四行：年龄和套餐 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>用户年龄分布</h3>
+                    <div id="ageChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>上机类型与套餐分布</h3>
+                    <div id="packageChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第五行：热力图 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>一周24小时热力图</h3>
+                    <div id="heatmapChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+
+            <!-- 第六行：结账方式和收入构成 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>结账方式分布</h3>
+                    <div id="paymentChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>收入构成（本金 vs 赠送）</h3>
+                    <div id="revenueTypeChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第七行：TOP用户 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>TOP 20 高频用户</h3>
+                    <div id="topUsersChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- 结束 sessionTab -->
+
+        <!-- ========== 商品销售区域 ========== -->
+        <div class="tab-content" id="productTab">
+
+        <!-- 商品日历选择区域 -->
+        <section class="calendar-section" id="productCalendarSection">
+            <div class="calendar-header">
+                <h2>选择日期查看商品数据</h2>
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
+                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
+                </div>
+            </div>
+            <div class="calendar-container">
+                <div class="calendar-wrapper">
+                    <input type="text" id="productDatePicker" placeholder="点击选择日期范围..." readonly>
+                </div>
+                <div class="date-info" id="productDateInfo">
+                    <div class="selected-range" id="productSelectedRange">请选择日期</div>
+                    <div class="range-stats" id="productRangeStats"></div>
+                </div>
+            </div>
+            <div class="calendar-actions">
+                <button class="btn btn-primary" id="loadProductBtn" disabled>
+                    <span>📊</span> 加载选中日期数据
+                </button>
+                <button class="btn btn-secondary" id="loadAllProductBtn">
+                    <span>📂</span> 加载全部数据
+                </button>
+                <button class="btn btn-secondary" id="showProductUploadBtn">
+                    <span>📤</span> 上传新数据
+                </button>
+                <button class="btn btn-sync" id="showSyncBtn">
+                    <span>🔄</span> API同步
+                </button>
+            </div>
+        </section>
+
+        <!-- API同步面板 -->
+        <section class="upload-section hidden" id="syncSection">
+            <div class="section-header">
+                <h2>从 API 同步商品数据</h2>
+                <button class="btn-close" id="closeSyncBtn">&times;</button>
+            </div>
+
+            <div class="sync-info">
+                <p>自动从易思吧后台获取商品销售数据并同步到数据库</p>
+                <p style="margin-top: 8px; font-size: 0.85rem;">
+                    <span class="dot has-data" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #48bb78; margin-right: 4px;"></span>
+                    绿色日期表示已有数据（将自动跳过）
+                </p>
+            </div>
+
+            <div class="upload-date-section">
+                <label>选择同步日期范围：</label>
+                <input type="text" id="syncDatePicker" placeholder="点击选择日期范围..." readonly>
+                <p class="hint">建议选择最近 7 天，避免一次同步过多数据</p>
+            </div>
+
+            <div class="sync-actions">
+                <button class="btn btn-primary" id="startSyncBtn" disabled>
+                    <span>🚀</span> 开始同步
+                </button>
+                <button class="btn btn-secondary" id="clearProductDataBtn">
+                    <span>🗑️</span> 清空全部商品数据
+                </button>
+            </div>
+
+            <div id="syncProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="syncProgressFill"></div>
+                </div>
+                <div class="progress-text" id="syncProgressText">准备同步...</div>
+            </div>
+
+            <div id="syncLog" class="sync-log hidden"></div>
+        </section>
+
+        <!-- 商品上传面板 -->
+        <section class="upload-section hidden" id="productUploadSection">
+            <div class="section-header">
+                <h2>上传商品销售数据</h2>
+                <button class="btn-close" id="closeProductUploadBtn">&times;</button>
+            </div>
+
+            <!-- 日期选择（必填） -->
+            <div class="upload-date-section">
+                <label>选择数据对应的日期（必填）：</label>
+                <input type="text" id="productUploadDate" placeholder="点击选择日期..." readonly>
+                <p class="hint">可选择单日或连续日期范围，相同日期的数据会被覆盖</p>
+            </div>
+
+            <div class="upload-box" id="productUploadBox">
+                <input type="file" id="productFileInput" accept=".xls,.xlsx" />
+                <div class="upload-hint">
+                    <span class="upload-icon">📦</span>
+                    <p>点击或拖拽上传商品销售 Excel 文件</p>
+                    <p class="file-types">支持 .xls, .xlsx 格式</p>
+                </div>
+            </div>
+            <div id="productFileInfo" class="file-info hidden"></div>
+            <div id="productUploadActions" class="upload-actions hidden">
+                <button class="btn btn-primary" id="saveProductBtn" disabled>
+                    <span>💾</span> 保存到数据库
+                </button>
+                <button class="btn btn-secondary" id="previewProductBtn">
+                    <span>👁️</span> 仅预览不保存
+                </button>
+            </div>
+            <div id="productUploadProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="productProgressFill"></div>
+                </div>
+                <div class="progress-text" id="productProgressText">准备上传...</div>
+            </div>
+        </section>
+
+        <!-- 商品数据概览卡片 -->
+        <section class="stats-overview hidden" id="productStatsOverview">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalItems">-</div>
+                    <div class="stat-label">商品种类</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🛒</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalQuantity">-</div>
+                    <div class="stat-label">总销量</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalRevenue">-</div>
+                    <div class="stat-label">总营收</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalProfit">-</div>
+                    <div class="stat-label">总利润</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 商品图表区域 -->
+        <section class="charts-section hidden" id="productChartsSection">
+            <!-- 第一行：销量趋势 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>每日销售趋势</h3>
+                    <div id="productDailyChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第二行：分类和TOP商品 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>商品分类销量分布</h3>
+                    <div id="productCategoryChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>商品分类利润分布</h3>
+                    <div id="productCategoryProfitChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第三行：TOP商品销量和利润 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>TOP 15 热销商品</h3>
+                    <div id="topProductsChart" class="chart chart-tall"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>TOP 15 利润商品</h3>
+                    <div id="topProfitProductsChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+
+            <!-- 第四行：利润率分析 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>商品利润率分析（按分类）</h3>
+                    <div id="profitRateChart" class="chart"></div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- 结束 productTab -->
+
+    </div>
+
+    <script>
+        // =====================================================
+        // AUTHENTICATION - Simple hardcoded password
+        // =====================================================
+        const AUTH_KEY = 'xiaoyao_dashboard_auth';
+        const AUTH_PASSWORD = 'xiaoyao2024'; // 硬编码密码
+
+        // Check if already authenticated
+        function checkAuth() {
+            const isAuth = sessionStorage.getItem(AUTH_KEY) === 'true';
+            const loginOverlay = document.getElementById('loginOverlay');
+            const container = document.querySelector('.container');
+
+            if (isAuth) {
+                loginOverlay.classList.add('hidden');
+                container.style.display = 'block';
+            } else {
+                loginOverlay.classList.remove('hidden');
+                container.style.display = 'none';
+            }
+        }
+
+        // Login handler
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (password === AUTH_PASSWORD) {
+                sessionStorage.setItem(AUTH_KEY, 'true');
+                checkAuth();
+            } else {
+                errorEl.classList.add('show');
+                document.getElementById('passwordInput').value = '';
+                setTimeout(() => {
+                    errorEl.classList.remove('show');
+                }, 3000);
+            }
+        });
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            sessionStorage.removeItem(AUTH_KEY);
+            checkAuth();
+        });
+
+        // Initial check
+        checkAuth();
+    </script>
+    <script src="sync-products.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

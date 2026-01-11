@@ -3,409 +3,424 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>网吧数据分析系统</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <title>小妖电竞联盟 - 太初电竞鸿蒙店</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>网吧数据分析系统</h1>
-            <p class="subtitle">上机情况与商品销售可视化分析</p>
-            <div class="db-status" id="dbStatus">
-                <span class="status-dot"></span>
-                <span class="status-text">连接数据库中...</span>
-            </div>
-        </header>
-
-        <!-- 数据类型切换标签 -->
-        <div class="data-tabs">
-            <button class="tab-btn active" data-tab="session">上机数据</button>
-            <button class="tab-btn" data-tab="product">商品销售</button>
-        </div>
-
-        <!-- ========== 上机数据区域 ========== -->
-        <div class="tab-content active" id="sessionTab">
-
-        <!-- 日历选择区域 -->
-        <section class="calendar-section" id="calendarSection">
-            <div class="calendar-header">
-                <h2>选择日期查看数据</h2>
-                <div class="calendar-legend">
-                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
-                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
-                </div>
-            </div>
-            <div class="calendar-container">
-                <div class="calendar-wrapper">
-                    <input type="text" id="datePicker" placeholder="点击选择日期范围..." readonly>
-                </div>
-                <div class="date-info" id="dateInfo">
-                    <div class="selected-range" id="selectedRange">请选择日期</div>
-                    <div class="range-stats" id="rangeStats"></div>
-                </div>
-            </div>
-            <div class="calendar-actions">
-                <button class="btn btn-primary" id="loadSelectedBtn" disabled>
-                    <span>📊</span> 加载选中日期数据
-                </button>
-                <button class="btn btn-secondary" id="loadAllBtn">
-                    <span>📂</span> 加载全部数据
-                </button>
-                <button class="btn btn-secondary" id="showUploadBtn">
-                    <span>📤</span> 上传新数据
-                </button>
-            </div>
-        </section>
-
-        <!-- 上传数据面板（默认隐藏） -->
-        <section class="upload-section hidden" id="uploadSection">
-            <div class="section-header">
-                <h2>上传数据</h2>
-                <button class="btn-close" id="closeUploadBtn">&times;</button>
-            </div>
-            <div class="upload-box" id="uploadBox">
-                <input type="file" id="fileInput" accept=".xls,.xlsx" />
-                <div class="upload-hint">
-                    <span class="upload-icon">📁</span>
-                    <p>点击或拖拽上传 Excel 文件（上机明细）</p>
-                    <p class="file-types">支持 .xls, .xlsx 格式</p>
-                </div>
-            </div>
-            <div id="fileInfo" class="file-info hidden"></div>
-            <div id="uploadActions" class="upload-actions hidden">
-                <button class="btn btn-primary" id="saveToDbBtn">
-                    <span>💾</span> 保存到数据库
-                </button>
-                <button class="btn btn-secondary" id="previewOnlyBtn">
-                    <span>👁️</span> 仅预览不保存
-                </button>
-            </div>
-            <div id="uploadProgress" class="upload-progress hidden">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div class="progress-text" id="progressText">准备上传...</div>
-            </div>
-        </section>
-
-        <!-- 加载提示 -->
-        <div class="loading-overlay hidden" id="loadingOverlay">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">加载数据中...</div>
-        </div>
-
-        <!-- 数据概览卡片 -->
-        <section class="stats-overview hidden" id="statsOverview">
-            <div class="stat-card">
-                <div class="stat-icon">📊</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalRecords">-</div>
-                    <div class="stat-label">总上机人次</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="totalRevenue">-</div>
-                    <div class="stat-label">总收入</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="dateRange">-</div>
-                    <div class="stat-label">数据时间范围</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">👤</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="avgSpend">-</div>
-                    <div class="stat-label">人均消费</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 图表区域 -->
-        <section class="charts-section hidden" id="chartsSection">
-            <!-- 第一行：日营收趋势 -->
-            <div class="chart-row">
-                <div class="chart-container full-width">
-                    <h3>每日营收与上机人次趋势</h3>
-                    <div id="dailyTrendChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第二行：时间分布 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>24小时上机分布</h3>
-                    <div id="hourlyChart" class="chart"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>星期分布</h3>
-                    <div id="weekdayChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第三行：会员和区域 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>会员类型分布</h3>
-                    <div id="memberTypeChart" class="chart"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>区域分布</h3>
-                    <div id="areaChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第四行：年龄和套餐 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>用户年龄分布</h3>
-                    <div id="ageChart" class="chart"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>上机类型与套餐分布</h3>
-                    <div id="packageChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第五行：热力图 -->
-            <div class="chart-row">
-                <div class="chart-container full-width">
-                    <h3>一周24小时热力图</h3>
-                    <div id="heatmapChart" class="chart chart-tall"></div>
-                </div>
-            </div>
-
-            <!-- 第六行：结账方式和收入构成 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>结账方式分布</h3>
-                    <div id="paymentChart" class="chart"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>收入构成（本金 vs 赠送）</h3>
-                    <div id="revenueTypeChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第七行：TOP用户 -->
-            <div class="chart-row">
-                <div class="chart-container full-width">
-                    <h3>TOP 20 高频用户</h3>
-                    <div id="topUsersChart" class="chart chart-tall"></div>
-                </div>
-            </div>
-        </section>
-
-        </div><!-- 结束 sessionTab -->
-
-        <!-- ========== 商品销售区域 ========== -->
-        <div class="tab-content" id="productTab">
-
-        <!-- 商品日历选择区域 -->
-        <section class="calendar-section" id="productCalendarSection">
-            <div class="calendar-header">
-                <h2>选择日期查看商品数据</h2>
-                <div class="calendar-legend">
-                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
-                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
-                </div>
-            </div>
-            <div class="calendar-container">
-                <div class="calendar-wrapper">
-                    <input type="text" id="productDatePicker" placeholder="点击选择日期范围..." readonly>
-                </div>
-                <div class="date-info" id="productDateInfo">
-                    <div class="selected-range" id="productSelectedRange">请选择日期</div>
-                    <div class="range-stats" id="productRangeStats"></div>
-                </div>
-            </div>
-            <div class="calendar-actions">
-                <button class="btn btn-primary" id="loadProductBtn" disabled>
-                    <span>📊</span> 加载选中日期数据
-                </button>
-                <button class="btn btn-secondary" id="loadAllProductBtn">
-                    <span>📂</span> 加载全部数据
-                </button>
-                <button class="btn btn-secondary" id="showProductUploadBtn">
-                    <span>📤</span> 上传新数据
-                </button>
-                <button class="btn btn-sync" id="showSyncBtn">
-                    <span>🔄</span> API同步
-                </button>
-            </div>
-        </section>
-
-        <!-- API同步面板 -->
-        <section class="upload-section hidden" id="syncSection">
-            <div class="section-header">
-                <h2>从 API 同步商品数据</h2>
-                <button class="btn-close" id="closeSyncBtn">&times;</button>
-            </div>
-
-            <div class="sync-info">
-                <p>自动从易思吧后台获取商品销售数据并同步到数据库</p>
-                <p style="margin-top: 8px; font-size: 0.85rem;">
-                    <span class="dot has-data" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #48bb78; margin-right: 4px;"></span>
-                    绿色日期表示已有数据（将自动跳过）
-                </p>
-            </div>
-
-            <div class="upload-date-section">
-                <label>选择同步日期范围：</label>
-                <input type="text" id="syncDatePicker" placeholder="点击选择日期范围..." readonly>
-                <p class="hint">建议选择最近 7 天，避免一次同步过多数据</p>
-            </div>
-
-            <div class="sync-actions">
-                <button class="btn btn-primary" id="startSyncBtn" disabled>
-                    <span>🚀</span> 开始同步
-                </button>
-                <button class="btn btn-secondary" id="clearProductDataBtn">
-                    <span>🗑️</span> 清空全部商品数据
-                </button>
-            </div>
-
-            <div id="syncProgress" class="upload-progress hidden">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="syncProgressFill"></div>
-                </div>
-                <div class="progress-text" id="syncProgressText">准备同步...</div>
-            </div>
-
-            <div id="syncLog" class="sync-log hidden"></div>
-        </section>
-
-        <!-- 商品上传面板 -->
-        <section class="upload-section hidden" id="productUploadSection">
-            <div class="section-header">
-                <h2>上传商品销售数据</h2>
-                <button class="btn-close" id="closeProductUploadBtn">&times;</button>
-            </div>
-
-            <!-- 日期选择（必填） -->
-            <div class="upload-date-section">
-                <label>选择数据对应的日期（必填）：</label>
-                <input type="text" id="productUploadDate" placeholder="点击选择日期..." readonly>
-                <p class="hint">可选择单日或连续日期范围，相同日期的数据会被覆盖</p>
-            </div>
-
-            <div class="upload-box" id="productUploadBox">
-                <input type="file" id="productFileInput" accept=".xls,.xlsx" />
-                <div class="upload-hint">
-                    <span class="upload-icon">📦</span>
-                    <p>点击或拖拽上传商品销售 Excel 文件</p>
-                    <p class="file-types">支持 .xls, .xlsx 格式</p>
-                </div>
-            </div>
-            <div id="productFileInfo" class="file-info hidden"></div>
-            <div id="productUploadActions" class="upload-actions hidden">
-                <button class="btn btn-primary" id="saveProductBtn" disabled>
-                    <span>💾</span> 保存到数据库
-                </button>
-                <button class="btn btn-secondary" id="previewProductBtn">
-                    <span>👁️</span> 仅预览不保存
-                </button>
-            </div>
-            <div id="productUploadProgress" class="upload-progress hidden">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="productProgressFill"></div>
-                </div>
-                <div class="progress-text" id="productProgressText">准备上传...</div>
-            </div>
-        </section>
-
-        <!-- 商品数据概览卡片 -->
-        <section class="stats-overview hidden" id="productStatsOverview">
-            <div class="stat-card">
-                <div class="stat-icon">📦</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="productTotalItems">-</div>
-                    <div class="stat-label">商品种类</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🛒</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="productTotalQuantity">-</div>
-                    <div class="stat-label">总销量</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="productTotalRevenue">-</div>
-                    <div class="stat-label">总营收</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📈</div>
-                <div class="stat-content">
-                    <div class="stat-value" id="productTotalProfit">-</div>
-                    <div class="stat-label">总利润</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 商品图表区域 -->
-        <section class="charts-section hidden" id="productChartsSection">
-            <!-- 第一行：销量趋势 -->
-            <div class="chart-row">
-                <div class="chart-container full-width">
-                    <h3>每日销售趋势</h3>
-                    <div id="productDailyChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第二行：分类和TOP商品 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>商品分类销量分布</h3>
-                    <div id="productCategoryChart" class="chart"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>商品分类利润分布</h3>
-                    <div id="productCategoryProfitChart" class="chart"></div>
-                </div>
-            </div>
-
-            <!-- 第三行：TOP商品销量和利润 -->
-            <div class="chart-row">
-                <div class="chart-container half-width">
-                    <h3>TOP 15 热销商品</h3>
-                    <div id="topProductsChart" class="chart chart-tall"></div>
-                </div>
-                <div class="chart-container half-width">
-                    <h3>TOP 15 利润商品</h3>
-                    <div id="topProfitProductsChart" class="chart chart-tall"></div>
-                </div>
-            </div>
-
-            <!-- 第四行：利润率分析 -->
-            <div class="chart-row">
-                <div class="chart-container full-width">
-                    <h3>商品利润率分析（按分类）</h3>
-                    <div id="profitRateChart" class="chart"></div>
-                </div>
-            </div>
-        </section>
-
-        </div><!-- 结束 productTab -->
-
+    <!-- Animated Background -->
+    <div class="cyber-grid"></div>
+    <div class="glow-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
     </div>
 
-    <script src="sync-products.js"></script>
-    <script src="app.js"></script>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-brand">
+            <span class="brand-icon">XY</span>
+            <span class="brand-text">小妖电竞</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">设施服务</a>
+            <a href="#pricing">会员价格</a>
+            <a href="#gallery">环境展示</a>
+            <a href="#contact">联系我们</a>
+            <a href="dashboard.html" class="nav-admin">管理后台</a>
+        </div>
+        <button class="nav-toggle" id="navToggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-badge">太初电竞鸿蒙店</div>
+            <h1 class="hero-title">
+                <span class="title-line">征服</span>
+                <span class="title-line gradient-text">虚拟战场</span>
+                <span class="title-line">称霸电竞世界</span>
+            </h1>
+            <p class="hero-subtitle">
+                顶级硬件配置 · 沉浸式电竞体验 · 专业赛事级环境
+            </p>
+            <div class="hero-actions">
+                <a href="#pricing" class="btn btn-primary">
+                    <span>立即体验</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    <span>了解更多</span>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">200+</span>
+                    <span class="stat-label">高端机位</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">RTX 4080</span>
+                    <span class="stat-label">旗舰显卡</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">240Hz</span>
+                    <span class="stat-label">电竞显示器</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="hero-card">
+                <div class="card-glow"></div>
+                <div class="card-content">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M6 11V6a6 6 0 1 1 12 0v5"/>
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <circle cx="12" cy="16" r="1"/>
+                        </svg>
+                    </div>
+                    <div class="card-label">营业时间</div>
+                    <div class="card-value">24小时</div>
+                    <div class="card-desc">全天候开放</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="section-header">
+            <span class="section-tag">WHY CHOOSE US</span>
+            <h2 class="section-title">极致电竞体验</h2>
+            <p class="section-desc">我们为每一位玩家打造专业级的游戏环境</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <path d="M8 21h8M12 17v4"/>
+                    </svg>
+                </div>
+                <h3>顶级硬件</h3>
+                <p>Intel i9 + RTX 4080 + 32GB DDR5，畅玩任何3A大作，帧率稳定流畅</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <h3>24小时营业</h3>
+                <p>全天候开放，深夜开黑不打烊，随时随地享受游戏时光</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <h3>千兆网络</h3>
+                <p>企业级光纤专线，低延迟高带宽，告别卡顿和掉线</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                </div>
+                <h3>电竞外设</h3>
+                <p>机械键盘、电竞鼠标、7.1声道耳机，全套专业外设配置</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                </div>
+                <h3>开黑包厢</h3>
+                <p>5人/10人专属包厢，战队开黑私密空间，语音交流无障碍</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                        <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                        <line x1="6" y1="1" x2="6" y2="4"/>
+                        <line x1="10" y1="1" x2="10" y2="4"/>
+                        <line x1="14" y1="1" x2="14" y2="4"/>
+                    </svg>
+                </div>
+                <h3>饮品小食</h3>
+                <p>精选饮料零食，现磨咖啡奶茶，游戏补给一应俱全</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing" id="pricing">
+        <div class="section-header">
+            <span class="section-tag">MEMBERSHIP</span>
+            <h2 class="section-title">会员价格</h2>
+            <p class="section-desc">多种套餐选择，满足不同需求</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <div class="price-header">
+                    <h3>普通区</h3>
+                    <div class="price-tag">经济实惠</div>
+                </div>
+                <div class="price-value">
+                    <span class="currency">¥</span>
+                    <span class="amount">6</span>
+                    <span class="period">/小时</span>
+                </div>
+                <ul class="price-features">
+                    <li>RTX 3060 显卡</li>
+                    <li>144Hz 显示器</li>
+                    <li>机械键盘鼠标</li>
+                    <li>舒适电竞椅</li>
+                </ul>
+                <a href="#contact" class="btn btn-outline">选择此套餐</a>
+            </div>
+            <div class="price-card featured">
+                <div class="price-badge">热门选择</div>
+                <div class="price-header">
+                    <h3>电竞区</h3>
+                    <div class="price-tag">性能优选</div>
+                </div>
+                <div class="price-value">
+                    <span class="currency">¥</span>
+                    <span class="amount">10</span>
+                    <span class="period">/小时</span>
+                </div>
+                <ul class="price-features">
+                    <li>RTX 4080 显卡</li>
+                    <li>240Hz 电竞显示器</li>
+                    <li>高端机械键盘</li>
+                    <li>人体工学电竞椅</li>
+                    <li>7.1声道耳机</li>
+                </ul>
+                <a href="#contact" class="btn btn-primary">选择此套餐</a>
+            </div>
+            <div class="price-card">
+                <div class="price-header">
+                    <h3>VIP包厢</h3>
+                    <div class="price-tag">尊享体验</div>
+                </div>
+                <div class="price-value">
+                    <span class="currency">¥</span>
+                    <span class="amount">15</span>
+                    <span class="period">/小时</span>
+                </div>
+                <ul class="price-features">
+                    <li>独立私密空间</li>
+                    <li>RTX 4090 显卡</li>
+                    <li>4K 曲面屏</li>
+                    <li>顶级外设配置</li>
+                    <li>专属服务</li>
+                </ul>
+                <a href="#contact" class="btn btn-outline">选择此套餐</a>
+            </div>
+        </div>
+        <div class="pricing-note">
+            <p>充值优惠：充100送20 | 充300送80 | 充500送150</p>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section class="gallery" id="gallery">
+        <div class="section-header">
+            <span class="section-tag">ENVIRONMENT</span>
+            <h2 class="section-title">环境展示</h2>
+            <p class="section-desc">专业电竞氛围，沉浸式游戏体验</p>
+        </div>
+        <div class="gallery-grid">
+            <div class="gallery-item large">
+                <div class="gallery-placeholder">
+                    <span class="placeholder-icon">🎮</span>
+                    <span class="placeholder-text">电竞大厅</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-placeholder">
+                    <span class="placeholder-icon">🖥️</span>
+                    <span class="placeholder-text">高端配置</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-placeholder">
+                    <span class="placeholder-icon">🎧</span>
+                    <span class="placeholder-text">电竞外设</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-placeholder">
+                    <span class="placeholder-icon">🚪</span>
+                    <span class="placeholder-text">VIP包厢</span>
+                </div>
+            </div>
+            <div class="gallery-item">
+                <div class="gallery-placeholder">
+                    <span class="placeholder-icon">☕</span>
+                    <span class="placeholder-text">休息区</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="contact" id="contact">
+        <div class="contact-content">
+            <div class="contact-info">
+                <span class="section-tag">CONTACT US</span>
+                <h2 class="section-title">联系我们</h2>
+                <div class="info-items">
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                        </div>
+                        <div class="info-text">
+                            <h4>地址</h4>
+                            <p>四川省成都市太初镇电竞广场3楼</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                            </svg>
+                        </div>
+                        <div class="info-text">
+                            <h4>电话</h4>
+                            <p>028-8888-8888</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                        </div>
+                        <div class="info-text">
+                            <h4>营业时间</h4>
+                            <p>24小时营业</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="contact-map">
+                <div class="map-placeholder">
+                    <span class="placeholder-icon">📍</span>
+                    <span class="placeholder-text">地图位置</span>
+                    <p class="placeholder-desc">可嵌入高德/百度地图</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="brand-icon">XY</span>
+                <span class="brand-text">小妖电竞联盟</span>
+            </div>
+            <div class="footer-links">
+                <a href="#features">设施服务</a>
+                <a href="#pricing">会员价格</a>
+                <a href="#gallery">环境展示</a>
+                <a href="#contact">联系我们</a>
+            </div>
+            <div class="footer-social">
+                <a href="#" class="social-link" title="微信">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm5 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-8.9 5.5c-2.1-1.2-3.6-3.5-3.6-6 0-4.1 3.8-7.5 8.5-7.5s8.5 3.4 8.5 7.5-3.8 7.5-8.5 7.5c-.9 0-1.8-.1-2.6-.3l-2.3.8z"/>
+                    </svg>
+                </a>
+                <a href="#" class="social-link" title="QQ">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.27-.49.74-.74 2.93-1.27 4.88-2.11 5.87-2.51 2.8-1.14 3.38-1.34 3.76-1.34.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                    </svg>
+                </a>
+                <a href="#" class="social-link" title="微博">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10.098 20c-4.612 0-8.348-2.429-8.348-5.42 0-1.558.864-3.264 2.352-4.809 1.977-2.055 4.278-2.982 5.137-2.074.377.399.39 1.07.041 1.88-.093.218.079.22.18.18.94-.398 2.72-.708 3.512.062.403.393.493 1.027.245 1.857-.083.276.12.319.294.319 1.573.049 3.39.665 3.39 2.585 0 2.991-3.792 5.42-8.803 5.42zm8.503-11.936c-.612-.169-1.027-.463-1.249-1.002-.222-.54-.188-1.135.081-1.792l.014-.032c.24-.584.554-.962.933-1.154.337-.17.701-.186 1.02-.187.336.001.595.055.78.144.438.207.783.641.976 1.229.232.707.151 1.403-.22 1.89-.352.46-.893.694-1.522.694-.217 0-.437-.024-.642-.072l-.171-.018zm1.493-1.936a.627.627 0 0 0-.258-.443c-.085-.062-.194-.106-.313-.106-.032 0-.065.003-.097.009-.209.043-.356.153-.439.324-.028.059-.052.12-.072.183-.011.036-.021.072-.029.108-.01.052-.017.103-.02.154a.88.88 0 0 0 .011.206.627.627 0 0 0 .117.272c.085.112.198.19.323.223a.653.653 0 0 0 .186.025c.145 0 .299-.052.416-.16.07-.065.123-.142.156-.224.053-.13.067-.27.047-.399a.908.908 0 0 0-.028-.172z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 小妖电竞联盟 · 太初电竞鸿蒙店 · All Rights Reserved</p>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile nav toggle
+        document.getElementById('navToggle').addEventListener('click', function() {
+            document.querySelector('.nav-links').classList.toggle('active');
+            this.classList.toggle('active');
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    document.querySelector('.nav-links').classList.remove('active');
+                    document.getElementById('navToggle').classList.remove('active');
+                }
+            });
+        });
+
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const nav = document.querySelector('.nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('scrolled');
+            } else {
+                nav.classList.remove('scrolled');
+            }
+        });
+
+        // Animate elements on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.feature-card, .price-card, .gallery-item, .info-item').forEach(el => {
+            observer.observe(el);
+        });
+    </script>
 </body>
 </html>
