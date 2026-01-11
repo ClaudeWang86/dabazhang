@@ -241,7 +241,50 @@
                 <button class="btn btn-secondary" id="showProductUploadBtn">
                     <span>📤</span> 上传新数据
                 </button>
+                <button class="btn btn-sync" id="showSyncBtn">
+                    <span>🔄</span> API同步
+                </button>
             </div>
+        </section>
+
+        <!-- API同步面板 -->
+        <section class="upload-section hidden" id="syncSection">
+            <div class="section-header">
+                <h2>从 API 同步商品数据</h2>
+                <button class="btn-close" id="closeSyncBtn">&times;</button>
+            </div>
+
+            <div class="sync-info">
+                <p>自动从易思吧后台获取商品销售数据并同步到数据库</p>
+                <p style="margin-top: 8px; font-size: 0.85rem;">
+                    <span class="dot has-data" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #48bb78; margin-right: 4px;"></span>
+                    绿色日期表示已有数据（将自动跳过）
+                </p>
+            </div>
+
+            <div class="upload-date-section">
+                <label>选择同步日期范围：</label>
+                <input type="text" id="syncDatePicker" placeholder="点击选择日期范围..." readonly>
+                <p class="hint">建议选择最近 7 天，避免一次同步过多数据</p>
+            </div>
+
+            <div class="sync-actions">
+                <button class="btn btn-primary" id="startSyncBtn" disabled>
+                    <span>🚀</span> 开始同步
+                </button>
+                <button class="btn btn-secondary" id="clearProductDataBtn">
+                    <span>🗑️</span> 清空全部商品数据
+                </button>
+            </div>
+
+            <div id="syncProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="syncProgressFill"></div>
+                </div>
+                <div class="progress-text" id="syncProgressText">准备同步...</div>
+            </div>
+
+            <div id="syncLog" class="sync-log hidden"></div>
         </section>
 
         <!-- 商品上传面板 -->
@@ -362,6 +405,7 @@
 
     </div>
 
+    <script src="sync-products.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

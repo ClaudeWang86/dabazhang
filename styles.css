@@ -491,6 +491,59 @@ header h1 {
     color: #a0aec0;
 }
 
+/* Sync Section */
+.sync-info {
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: rgba(56, 178, 172, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid #38b2ac;
+}
+
+.sync-info p {
+    color: #a0aec0;
+    margin: 0;
+}
+
+.sync-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.sync-log {
+    margin-top: 20px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+}
+
+.sync-log .log-entry {
+    padding: 4px 0;
+    color: #a0aec0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sync-log .log-entry:last-child {
+    border-bottom: none;
+}
+
+.sync-log .log-entry.success {
+    color: #48bb78;
+}
+
+.sync-log .log-entry.error {
+    color: #e53e3e;
+}
+
+.sync-log .log-entry.info {
+    color: #667eea;
+}
+
 /* Loading Overlay */
 .loading-overlay {
     position: fixed;
@@ -558,6 +611,16 @@ header h1 {
 
 .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-sync {
+    background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+    color: #fff;
+}
+
+.btn-sync:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(56, 178, 172, 0.4);
 }
 
 /* Stats Overview */
