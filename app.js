@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupProductDragDrop();
     setupSyncButtons();
     setupSessionSyncButtons();
+    setupDeleteButtons();
     window.addEventListener('resize', handleResize);
 
     // 测试数据库连接并加载日期数据
@@ -1251,6 +1252,32 @@ function initProductSyncDatePicker() {
         end: formatDate(today)
     };
     updateProductSyncButtonState();
+
+    // 初始化删除日期选择器
+    initProductDeleteDatePickers();
+
+    // 绑定删除按钮事件（确保 DOM 元素可用时绑定）
+    setupProductDeleteButtons();
+}
+
+// 设置商品删除按钮事件
+function setupProductDeleteButtons() {
+    console.log('setupProductDeleteButtons called');
+    const rangeBtn = document.getElementById('deleteProductRangeBtn');
+    const allBtn = document.getElementById('deleteAllProductBtn');
+
+    console.log('Product delete buttons:', { rangeBtn: !!rangeBtn, allBtn: !!allBtn });
+
+    if (rangeBtn && !rangeBtn._listenerAdded) {
+        rangeBtn.addEventListener('click', deleteProductDataByRange);
+        rangeBtn._listenerAdded = true;
+        console.log('Product range delete listener added');
+    }
+    if (allBtn && !allBtn._listenerAdded) {
+        allBtn.addEventListener('click', deleteAllProductData);
+        allBtn._listenerAdded = true;
+        console.log('Product all delete listener added');
+    }
 }
 
 // 更新商品同步按钮状态
@@ -1264,8 +1291,11 @@ function updateProductSyncButtonState() {
 // 添加同步日志
 function addSyncLog(message, type = 'info') {
     const logDiv = document.getElementById('syncLog');
-    logDiv.classList.remove('hidden');
+    // 日志元素不存在时只输出到控制台
+    console.log(`[Sync ${type}] ${message}`);
+    if (!logDiv) return;
 
+    logDiv.classList.remove('hidden');
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
@@ -1276,6 +1306,7 @@ function addSyncLog(message, type = 'info') {
 // 清空同步日志
 function clearSyncLog() {
     const logDiv = document.getElementById('syncLog');
+    if (!logDiv) return;
     logDiv.innerHTML = '';
     logDiv.classList.add('hidden');
 }
@@ -1515,6 +1546,32 @@ function initSessionSyncDatePicker() {
         end: formatDate(today)
     };
     updateSessionSyncButtonState();
+
+    // 初始化删除日期选择器
+    initSessionDeleteDatePickers();
+
+    // 绑定删除按钮事件（确保 DOM 元素可用时绑定）
+    setupSessionDeleteButtons();
+}
+
+// 设置上机删除按钮事件
+function setupSessionDeleteButtons() {
+    console.log('setupSessionDeleteButtons called');
+    const rangeBtn = document.getElementById('deleteSessionRangeBtn');
+    const allBtn = document.getElementById('deleteAllSessionBtn');
+
+    console.log('Session delete buttons:', { rangeBtn: !!rangeBtn, allBtn: !!allBtn });
+
+    if (rangeBtn && !rangeBtn._listenerAdded) {
+        rangeBtn.addEventListener('click', deleteSessionDataByRange);
+        rangeBtn._listenerAdded = true;
+        console.log('Session range delete listener added');
+    }
+    if (allBtn && !allBtn._listenerAdded) {
+        allBtn.addEventListener('click', deleteAllSessionData);
+        allBtn._listenerAdded = true;
+        console.log('Session all delete listener added');
+    }
 }
 
 // 更新上机同步按钮状态
@@ -1528,8 +1585,11 @@ function updateSessionSyncButtonState() {
 // 添加上机同步日志
 function addSessionSyncLog(message, type = 'info') {
     const logDiv = document.getElementById('sessionSyncLog');
-    logDiv.classList.remove('hidden');
+    // 日志元素不存在时只输出到控制台
+    console.log(`[SessionSync ${type}] ${message}`);
+    if (!logDiv) return;
 
+    logDiv.classList.remove('hidden');
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
@@ -1540,6 +1600,7 @@ function addSessionSyncLog(message, type = 'info') {
 // 清空上机同步日志
 function clearSessionSyncLog() {
     const logDiv = document.getElementById('sessionSyncLog');
+    if (!logDiv) return;
     logDiv.innerHTML = '';
     logDiv.classList.add('hidden');
 }
@@ -2290,4 +2351,380 @@ function renderProfitRateChart() {
         }]
     };
     charts.profitRate.setOption(option);
+}
+
+// =====================================================
+// 数据删除功能
+// =====================================================
+
+// 删除日期范围状态
+let sessionDeleteDateRange = { start: null, end: null };
+let productDeleteDateRange = { start: null, end: null };
+
+// 初始化上机数据删除日期选择器
+function initSessionDeleteDatePickers() {
+    const startInput = document.getElementById('sessionDeleteStartDate');
+    const endInput = document.getElementById('sessionDeleteEndDate');
+    const deleteBtn = document.getElementById('deleteSessionRangeBtn');
+
+    if (!startInput || !endInput) return;
+
+    // 获取有数据的日期列表
+    const datesToMark = availableDates.map(d => d.date);
+
+    flatpickr(startInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                const dateInfo = availableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.record_count} 条记录，¥${parseFloat(dateInfo.total_revenue).toFixed(0)}`;
+                }
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            sessionDeleteDateRange.start = dateStr;
+            updateSessionDeleteButtonState();
+        }
+    });
+
+    flatpickr(endInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                const dateInfo = availableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.record_count} 条记录，¥${parseFloat(dateInfo.total_revenue).toFixed(0)}`;
+                }
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            sessionDeleteDateRange.end = dateStr;
+            updateSessionDeleteButtonState();
+        }
+    });
+}
+
+// 更新上机删除按钮状态
+function updateSessionDeleteButtonState() {
+    const deleteBtn = document.getElementById('deleteSessionRangeBtn');
+    if (deleteBtn) {
+        deleteBtn.disabled = !(sessionDeleteDateRange.start && sessionDeleteDateRange.end);
+    }
+}
+
+// 初始化商品数据删除日期选择器
+function initProductDeleteDatePickers() {
+    const startInput = document.getElementById('productDeleteStartDate');
+    const endInput = document.getElementById('productDeleteEndDate');
+    const deleteBtn = document.getElementById('deleteProductRangeBtn');
+
+    if (!startInput || !endInput) return;
+
+    // 获取有数据的日期列表
+    const datesToMark = productAvailableDates.map(d => d.date);
+
+    flatpickr(startInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                const dateInfo = productAvailableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.product_count} 种商品，${dateInfo.total_quantity} 件，¥${parseFloat(dateInfo.total_revenue).toFixed(0)}`;
+                }
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            productDeleteDateRange.start = dateStr;
+            updateProductDeleteButtonState();
+        }
+    });
+
+    flatpickr(endInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                const dateInfo = productAvailableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.product_count} 种商品，${dateInfo.total_quantity} 件，¥${parseFloat(dateInfo.total_revenue).toFixed(0)}`;
+                }
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            productDeleteDateRange.end = dateStr;
+            updateProductDeleteButtonState();
+        }
+    });
+}
+
+// 更新商品删除按钮状态
+function updateProductDeleteButtonState() {
+    const deleteBtn = document.getElementById('deleteProductRangeBtn');
+    if (deleteBtn) {
+        deleteBtn.disabled = !(productDeleteDateRange.start && productDeleteDateRange.end);
+    }
+}
+
+// 删除指定日期范围的上机数据
+async function deleteSessionDataByRange() {
+    console.log('deleteSessionDataByRange called', sessionDeleteDateRange);
+
+    if (!sessionDeleteDateRange.start || !sessionDeleteDateRange.end) {
+        alert('请选择要删除的日期范围');
+        return;
+    }
+
+    const confirmMsg = `确定要删除 ${sessionDeleteDateRange.start} 至 ${sessionDeleteDateRange.end} 的上机数据吗？\n\n此操作不可撤销！`;
+    if (!confirm(confirmMsg)) return;
+
+    const deleteBtn = document.getElementById('deleteSessionRangeBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        // 使用 Supabase REST API 删除
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+
+        const startDate = sessionDeleteDateRange.start;
+        const endDate = sessionDeleteDateRange.end;
+
+        // 删除 sessions 表中的数据 (使用 and 语法)
+        const sessionsUrl = `${supabaseUrl}/sessions?and=(start_time.gte.${startDate}T00:00:00Z,start_time.lte.${endDate}T23:59:59Z)`;
+        console.log('Delete sessions URL:', sessionsUrl);
+
+        const sessionsResponse = await fetch(sessionsUrl, { method: 'DELETE', headers });
+        const sessionsText = await sessionsResponse.text();
+        console.log('Sessions delete response:', sessionsResponse.status, sessionsText);
+
+        // 删除 session_dates 表中的数据
+        const datesUrl = `${supabaseUrl}/session_dates?and=(date.gte.${startDate},date.lte.${endDate})`;
+        console.log('Delete session_dates URL:', datesUrl);
+
+        const datesResponse = await fetch(datesUrl, { method: 'DELETE', headers });
+        console.log('Dates delete response:', datesResponse.status);
+
+        if (sessionsResponse.ok && datesResponse.ok) {
+            alert(`成功删除 ${startDate} 至 ${endDate} 的上机数据`);
+            // 重新加载可用日期
+            loadAvailableDates();
+            // 重新初始化删除日期选择器
+            initSessionDeleteDatePickers();
+        } else {
+            throw new Error(`删除失败: sessions=${sessionsResponse.status}, dates=${datesResponse.status}`);
+        }
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>删除选定日期数据</span>
+        `;
+        updateSessionDeleteButtonState();
+    }
+}
+
+// 删除所有上机数据
+async function deleteAllSessionData() {
+    const confirmMsg = '确定要删除所有上机数据吗？\n\n⚠️ 此操作将清空数据库中的所有上机记录，不可撤销！\n\n请输入 "DELETE" 确认：';
+    const input = prompt(confirmMsg);
+    if (input !== 'DELETE') {
+        alert('操作已取消');
+        return;
+    }
+
+    const deleteBtn = document.getElementById('deleteAllSessionBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 删除所有 sessions 数据
+        await fetch(`${supabaseUrl}/sessions?id=gt.0`, { method: 'DELETE', headers });
+
+        // 删除所有 session_dates 数据
+        await fetch(`${supabaseUrl}/session_dates?date=gt.2000-01-01`, { method: 'DELETE', headers });
+
+        alert('已删除所有上机数据');
+        loadAvailableDates();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>删除所有上机数据</span>
+        `;
+    }
+}
+
+// 删除指定日期范围的商品数据
+async function deleteProductDataByRange() {
+    console.log('deleteProductDataByRange called', productDeleteDateRange);
+
+    if (!productDeleteDateRange.start || !productDeleteDateRange.end) {
+        alert('请选择要删除的日期范围');
+        return;
+    }
+
+    const confirmMsg = `确定要删除 ${productDeleteDateRange.start} 至 ${productDeleteDateRange.end} 的商品销售数据吗？\n\n此操作不可撤销！`;
+    if (!confirm(confirmMsg)) return;
+
+    const deleteBtn = document.getElementById('deleteProductRangeBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        };
+
+        // 删除 product_sales 表中的数据
+        // 使用 or 条件来实现范围查询 (sale_date >= start AND sale_date <= end)
+        // PostgREST 要求对同一列的多个条件使用 and() 语法
+        const startDate = productDeleteDateRange.start;
+        const endDate = productDeleteDateRange.end;
+
+        // 构建正确的 URL - 使用 and 语法
+        const salesUrl = `${supabaseUrl}/product_sales?and=(sale_date.gte.${startDate},sale_date.lte.${endDate})`;
+        console.log('Delete product_sales URL:', salesUrl);
+
+        const response = await fetch(salesUrl, { method: 'DELETE', headers });
+        const responseText = await response.text();
+        console.log('Delete response:', response.status, responseText);
+
+        if (!response.ok) {
+            throw new Error(`删除商品数据失败: ${response.status} - ${responseText}`);
+        }
+
+        // 删除 product_dates 表中的数据
+        const datesUrl = `${supabaseUrl}/product_dates?and=(date.gte.${startDate},date.lte.${endDate})`;
+        console.log('Delete product_dates URL:', datesUrl);
+
+        const datesResponse = await fetch(datesUrl, { method: 'DELETE', headers });
+        console.log('Delete dates response:', datesResponse.status);
+
+        alert(`成功删除 ${productDeleteDateRange.start} 至 ${productDeleteDateRange.end} 的商品数据`);
+        // 重新加载可用日期
+        loadProductAvailableDates();
+        // 重新初始化删除日期选择器
+        initProductDeleteDatePickers();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>删除选定日期数据</span>
+        `;
+        updateProductDeleteButtonState();
+    }
+}
+
+// 删除所有商品数据
+async function deleteAllProductData() {
+    const confirmMsg = '确定要删除所有商品销售数据吗？\n\n⚠️ 此操作将清空数据库中的所有商品销售记录，不可撤销！\n\n请输入 "DELETE" 确认：';
+    const input = prompt(confirmMsg);
+    if (input !== 'DELETE') {
+        alert('操作已取消');
+        return;
+    }
+
+    const deleteBtn = document.getElementById('deleteAllProductBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 删除所有 product_sales 数据
+        await fetch(`${supabaseUrl}/product_sales?id=gt.0`, { method: 'DELETE', headers });
+
+        // 删除所有 product_dates 数据
+        await fetch(`${supabaseUrl}/product_dates?date=gt.2000-01-01`, { method: 'DELETE', headers });
+
+        alert('已删除所有商品数据');
+        loadProductAvailableDates();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>删除所有商品数据</span>
+        `;
+    }
+}
+
+// 获取 Supabase 配置（与 sync-products.js 一致）
+function getSupabaseConfig() {
+    if (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
+        return { url: SUPABASE_URL, key: SUPABASE_ANON_KEY };
+    }
+    return {
+        url: 'https://dfbgnrmigltjvlvdfcao.supabase.co',
+        key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmYmducm1pZ2x0anZsdmRmY2FvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5NDAzMTQsImV4cCI6MjA1MDUxNjMxNH0.v8BLnqv0-RGO7s4qLnR0_k9Jp5qQhNMXeVl_MqrxfHQ'
+    };
+}
+
+// 设置删除按钮事件
+function setupDeleteButtons() {
+    // 上机数据删除
+    document.getElementById('deleteSessionRangeBtn')?.addEventListener('click', deleteSessionDataByRange);
+    document.getElementById('deleteAllSessionBtn')?.addEventListener('click', deleteAllSessionData);
+
+    // 商品数据删除
+    document.getElementById('deleteProductRangeBtn')?.addEventListener('click', deleteProductDataByRange);
+    document.getElementById('deleteAllProductBtn')?.addEventListener('click', deleteAllProductData);
 }

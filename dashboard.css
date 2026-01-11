@@ -631,6 +631,117 @@
     margin: 15px 0;
 }
 
+/* Data Management Section */
+.data-management-section {
+    margin-top: 50px;
+    padding-top: 40px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-management-section h3 {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.data-management-section > .hint {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+}
+
+.delete-options {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.delete-option {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 25px;
+}
+
+.delete-option label {
+    display: block;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.delete-option .date-range-inputs {
+    margin-bottom: 20px;
+}
+
+.delete-option.delete-all {
+    background: rgba(255, 71, 87, 0.05);
+    border-color: rgba(255, 71, 87, 0.2);
+}
+
+.delete-option.delete-all label {
+    color: #ff4757;
+}
+
+/* Danger Button Styles */
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #ff4757 0%, #c0392b 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-danger svg {
+    width: 16px;
+    height: 16px;
+}
+
+.btn-danger-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: transparent;
+    border: 2px solid rgba(255, 71, 87, 0.5);
+    border-radius: 10px;
+    color: #ff4757;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-danger-outline:hover {
+    background: rgba(255, 71, 87, 0.1);
+    border-color: #ff4757;
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.2);
+}
+
+.btn-danger-outline svg {
+    width: 16px;
+    height: 16px;
+}
+
 @media (max-width: 768px) {
     .date-range-inputs {
         flex-direction: column;

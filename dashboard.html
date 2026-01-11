@@ -483,6 +483,40 @@
                     <div class="progress-text" id="sessionSyncProgressText">准备同步...</div>
                 </div>
                 <div id="sessionSyncResult" class="sync-result hidden"></div>
+
+                <!-- 数据管理区域 -->
+                <div class="data-management-section">
+                    <h3>数据管理</h3>
+                    <p class="hint">删除数据库中已同步的上机数据</p>
+
+                    <div class="delete-options">
+                        <div class="delete-option">
+                            <label>删除指定日期范围：</label>
+                            <div class="date-range-inputs">
+                                <input type="text" id="sessionDeleteStartDate" placeholder="开始日期" readonly>
+                                <span class="date-separator">至</span>
+                                <input type="text" id="sessionDeleteEndDate" placeholder="结束日期" readonly>
+                            </div>
+                            <button class="btn btn-danger" id="deleteSessionRangeBtn" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                <span>删除选定日期数据</span>
+                            </button>
+                        </div>
+
+                        <div class="delete-option delete-all">
+                            <label>危险操作：</label>
+                            <button class="btn btn-danger-outline" id="deleteAllSessionBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <span>删除所有上机数据</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div><!-- 结束 syncSessionTab -->
 
@@ -519,6 +553,40 @@
                     <div class="progress-text" id="productSyncProgressText">准备同步...</div>
                 </div>
                 <div id="productSyncResult" class="sync-result hidden"></div>
+
+                <!-- 数据管理区域 -->
+                <div class="data-management-section">
+                    <h3>数据管理</h3>
+                    <p class="hint">删除数据库中已同步的商品销售数据</p>
+
+                    <div class="delete-options">
+                        <div class="delete-option">
+                            <label>删除指定日期范围：</label>
+                            <div class="date-range-inputs">
+                                <input type="text" id="productDeleteStartDate" placeholder="开始日期" readonly>
+                                <span class="date-separator">至</span>
+                                <input type="text" id="productDeleteEndDate" placeholder="结束日期" readonly>
+                            </div>
+                            <button class="btn btn-danger" id="deleteProductRangeBtn" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <polyline points="3 6 5 6 21 6"/>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                </svg>
+                                <span>删除选定日期数据</span>
+                            </button>
+                        </div>
+
+                        <div class="delete-option delete-all">
+                            <label>危险操作：</label>
+                            <button class="btn btn-danger-outline" id="deleteAllProductBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <span>删除所有商品数据</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div><!-- 结束 syncProductTab -->
 

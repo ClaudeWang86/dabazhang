@@ -160,6 +160,23 @@ async function fetchAllSales(token, startDate, endDate) {
 function transformOrdersToProducts(orders, saleDate) {
     const productMap = {};
 
+    // 调试：打印第一个订单的原始数据结构
+    if (orders.length > 0) {
+        console.log('=== API 返回的订单数据示例 ===');
+        console.log('订单:', JSON.stringify(orders[0], null, 2));
+        if (orders[0].productList?.length > 0) {
+            console.log('商品详情:', JSON.stringify(orders[0].productList[0], null, 2));
+            const p = orders[0].productList[0];
+            console.log('字段分析:');
+            console.log('  - productName:', p.productName);
+            console.log('  - price (售价):', p.price, '分 =', (p.price || 0) / 100, '元');
+            console.log('  - inprice (进价):', p.inprice, '厘 =', (p.inprice || 0) / 1000, '元');
+            console.log('  - len (数量):', p.len);
+            console.log('  - 其他字段:', Object.keys(p).join(', '));
+        }
+        console.log('================================');
+    }
+
     orders.forEach(order => {
         // 只处理已完成的订单 (state === 3)
         if (order.state !== 3) return;
@@ -184,7 +201,7 @@ function transformOrdersToProducts(orders, saleDate) {
 
             const qty = product.len || 1;
             const price = (product.price || 0) / 100;  // 分转元
-            const cost = (product.inprice || 0) / 100;
+            const cost = (product.inprice || 0) / 1000;  // 厘转元（inprice单位是厘）
 
             productMap[key].quantity += qty;
             productMap[key].total_price += price * qty;
