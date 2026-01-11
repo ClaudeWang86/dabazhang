@@ -17,12 +17,21 @@
     <div class="container">
         <header>
             <h1>网吧数据分析系统</h1>
-            <p class="subtitle">上机情况可视化分析</p>
+            <p class="subtitle">上机情况与商品销售可视化分析</p>
             <div class="db-status" id="dbStatus">
                 <span class="status-dot"></span>
                 <span class="status-text">连接数据库中...</span>
             </div>
         </header>
+
+        <!-- 数据类型切换标签 -->
+        <div class="data-tabs">
+            <button class="tab-btn active" data-tab="session">上机数据</button>
+            <button class="tab-btn" data-tab="product">商品销售</button>
+        </div>
+
+        <!-- ========== 上机数据区域 ========== -->
+        <div class="tab-content active" id="sessionTab">
 
         <!-- 日历选择区域 -->
         <section class="calendar-section" id="calendarSection">
@@ -198,6 +207,159 @@
                 </div>
             </div>
         </section>
+
+        </div><!-- 结束 sessionTab -->
+
+        <!-- ========== 商品销售区域 ========== -->
+        <div class="tab-content" id="productTab">
+
+        <!-- 商品日历选择区域 -->
+        <section class="calendar-section" id="productCalendarSection">
+            <div class="calendar-header">
+                <h2>选择日期查看商品数据</h2>
+                <div class="calendar-legend">
+                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
+                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
+                </div>
+            </div>
+            <div class="calendar-container">
+                <div class="calendar-wrapper">
+                    <input type="text" id="productDatePicker" placeholder="点击选择日期范围..." readonly>
+                </div>
+                <div class="date-info" id="productDateInfo">
+                    <div class="selected-range" id="productSelectedRange">请选择日期</div>
+                    <div class="range-stats" id="productRangeStats"></div>
+                </div>
+            </div>
+            <div class="calendar-actions">
+                <button class="btn btn-primary" id="loadProductBtn" disabled>
+                    <span>📊</span> 加载选中日期数据
+                </button>
+                <button class="btn btn-secondary" id="loadAllProductBtn">
+                    <span>📂</span> 加载全部数据
+                </button>
+                <button class="btn btn-secondary" id="showProductUploadBtn">
+                    <span>📤</span> 上传新数据
+                </button>
+            </div>
+        </section>
+
+        <!-- 商品上传面板 -->
+        <section class="upload-section hidden" id="productUploadSection">
+            <div class="section-header">
+                <h2>上传商品销售数据</h2>
+                <button class="btn-close" id="closeProductUploadBtn">&times;</button>
+            </div>
+
+            <!-- 日期选择（必填） -->
+            <div class="upload-date-section">
+                <label>选择数据对应的日期（必填）：</label>
+                <input type="text" id="productUploadDate" placeholder="点击选择日期..." readonly>
+                <p class="hint">可选择单日或连续日期范围，相同日期的数据会被覆盖</p>
+            </div>
+
+            <div class="upload-box" id="productUploadBox">
+                <input type="file" id="productFileInput" accept=".xls,.xlsx" />
+                <div class="upload-hint">
+                    <span class="upload-icon">📦</span>
+                    <p>点击或拖拽上传商品销售 Excel 文件</p>
+                    <p class="file-types">支持 .xls, .xlsx 格式</p>
+                </div>
+            </div>
+            <div id="productFileInfo" class="file-info hidden"></div>
+            <div id="productUploadActions" class="upload-actions hidden">
+                <button class="btn btn-primary" id="saveProductBtn" disabled>
+                    <span>💾</span> 保存到数据库
+                </button>
+                <button class="btn btn-secondary" id="previewProductBtn">
+                    <span>👁️</span> 仅预览不保存
+                </button>
+            </div>
+            <div id="productUploadProgress" class="upload-progress hidden">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="productProgressFill"></div>
+                </div>
+                <div class="progress-text" id="productProgressText">准备上传...</div>
+            </div>
+        </section>
+
+        <!-- 商品数据概览卡片 -->
+        <section class="stats-overview hidden" id="productStatsOverview">
+            <div class="stat-card">
+                <div class="stat-icon">📦</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalItems">-</div>
+                    <div class="stat-label">商品种类</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🛒</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalQuantity">-</div>
+                    <div class="stat-label">总销量</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalRevenue">-</div>
+                    <div class="stat-label">总营收</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="productTotalProfit">-</div>
+                    <div class="stat-label">总利润</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 商品图表区域 -->
+        <section class="charts-section hidden" id="productChartsSection">
+            <!-- 第一行：销量趋势 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>每日销售趋势</h3>
+                    <div id="productDailyChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第二行：分类和TOP商品 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>商品分类销量分布</h3>
+                    <div id="productCategoryChart" class="chart"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>商品分类利润分布</h3>
+                    <div id="productCategoryProfitChart" class="chart"></div>
+                </div>
+            </div>
+
+            <!-- 第三行：TOP商品销量和利润 -->
+            <div class="chart-row">
+                <div class="chart-container half-width">
+                    <h3>TOP 15 热销商品</h3>
+                    <div id="topProductsChart" class="chart chart-tall"></div>
+                </div>
+                <div class="chart-container half-width">
+                    <h3>TOP 15 利润商品</h3>
+                    <div id="topProfitProductsChart" class="chart chart-tall"></div>
+                </div>
+            </div>
+
+            <!-- 第四行：利润率分析 -->
+            <div class="chart-row">
+                <div class="chart-container full-width">
+                    <h3>商品利润率分析（按分类）</h3>
+                    <div id="profitRateChart" class="chart"></div>
+                </div>
+            </div>
+        </section>
+
+        </div><!-- 结束 productTab -->
+
     </div>
 
     <script src="app.js"></script>

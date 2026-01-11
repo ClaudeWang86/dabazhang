@@ -37,6 +37,88 @@ header h1 {
     margin-bottom: 15px;
 }
 
+/* Data Tabs */
+.data-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.tab-btn {
+    padding: 12px 30px;
+    border: 2px solid #4a5568;
+    background: rgba(0, 0, 0, 0.2);
+    color: #a0aec0;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+    border-color: #667eea;
+    color: #fff;
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: #fff;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Upload Date Section */
+.upload-date-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 12px;
+    border: 1px solid #4a5568;
+}
+
+.upload-date-section label {
+    display: block;
+    margin-bottom: 10px;
+    color: #fff;
+    font-weight: 500;
+}
+
+.upload-date-section input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #4a5568;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-date-section input:hover {
+    border-color: #667eea;
+}
+
+.upload-date-section input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.upload-date-section .hint {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #718096;
+}
+
 /* Database Status */
 .db-status {
     display: inline-flex;
