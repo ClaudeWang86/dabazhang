@@ -169,7 +169,7 @@ function transformOrdersToProducts(orders, saleDate) {
 
             if (!productMap[key]) {
                 productMap[key] = {
-                    store_name: '小妖电竞联盟太初电竞鸿蒙店',
+                    store_name: '太初电竞',
                     product_name: product.productName,
                     category: getCategoryName(product.cateId),
                     product_type: '商品',
@@ -338,6 +338,265 @@ async function syncProductSales(startDate, endDate) {
     }
 }
 
+// =====================================================
+// 上机数据同步功能
+// =====================================================
+
+/**
+ * 将日期转换为 Unix 时间戳（北京时间）
+ */
+function dateToTimestamp(dateStr, isEndOfDay = false) {
+    const date = new Date(dateStr + 'T00:00:00+08:00');
+    if (isEndOfDay) {
+        date.setHours(23, 59, 59, 999);
+    }
+    return Math.floor(date.getTime() / 1000);
+}
+
+/**
+ * 将 Unix 时间戳转换为 ISO 日期时间字符串
+ */
+function timestampToISO(timestamp) {
+    if (!timestamp) return null;
+    return new Date(timestamp * 1000).toISOString();
+}
+
+/**
+ * 将秒数转换为时长格式
+ */
+function formatDuration(seconds) {
+    if (!seconds) return null;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return `${hours}小时${minutes}分钟`;
+}
+
+/**
+ * 获取上机记录数据（单页）
+ */
+async function fetchSessionsPage(token, startTime, endTime, page = 1, pageSize = 100) {
+    let data;
+
+    if (useProxy()) {
+        // 使用代理 API（Vercel 环境）
+        const proxyParams = new URLSearchParams({
+            action: 'sessions',
+            token: token,
+            startTime: startTime,
+            endTime: endTime,
+            page: page,
+            pageSize: pageSize
+        });
+        const response = await fetch(`/api/sync-proxy?${proxyParams.toString()}`);
+        data = await response.json();
+    } else {
+        // 直接调用（本地开发或 Node.js）
+        const params = new URLSearchParams({
+            'gidList[0]': API_CONFIG.gid,
+            'pageIndex': page,
+            'pageSize': pageSize,
+            'starttime': startTime,
+            'endtime': endTime
+        });
+
+        const response = await fetch(`${API_CONFIG.baseUrl}/netbar/admin/netbarOnlineRecord/select?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Origin': 'https://admin.yisbar.com',
+                'source': String(API_CONFIG.source),
+                'token': token
+            }
+        });
+
+        data = await response.json();
+    }
+
+    if (data.state !== 0) {
+        throw new Error(`获取上机数据失败: ${data.des || '未知错误'}`);
+    }
+
+    return data.data;
+}
+
+/**
+ * 获取所有上机记录数据（自动分页）
+ */
+async function fetchAllSessions(token, startTime, endTime) {
+    console.log(`正在获取上机数据...`);
+
+    const allRecords = [];
+    let page = 1;
+    const pageSize = 100;
+
+    while (true) {
+        const result = await fetchSessionsPage(token, startTime, endTime, page, pageSize);
+        allRecords.push(...result.list);
+
+        console.log(`  已获取 ${allRecords.length}/${result.total} 条记录`);
+
+        if (allRecords.length >= result.total) {
+            break;
+        }
+        page++;
+    }
+
+    return allRecords;
+}
+
+/**
+ * 转换 API 记录为 sessions 表格式
+ */
+function transformSessionRecords(records) {
+    return records
+        .filter(r => r.state === 3) // 只处理已完成的记录
+        .map(r => ({
+            card_type: null,
+            card_id: String(r.account || ''),
+            name: r.membername || null,
+            session_type: null,
+            session_detail: r.periodname || null,
+            area: r.areaname || null,
+            machine: r.machinename || null,
+            deposit_deducted: (r.tempbalance || 0) / 100,
+            principal_deducted: (r.basebalance || 0) / 100,
+            bonus_deducted: (r.awardbalance || 0) / 100,
+            bonus_to_balance: 0,
+            principal_balance: (r.basereserve || 0) / 100,
+            payment_method: getPaymentMethod(r.payway),
+            start_time: timestampToISO(r.onlinestarttime),
+            end_time: timestampToISO(r.offlinetime),
+            duration: formatDuration(r.internettime),
+            store: '太初电竞'
+        }))
+        .filter(r => r.card_id && r.start_time);
+}
+
+/**
+ * 根据支付方式代码获取名称
+ */
+function getPaymentMethod(payway) {
+    const methods = {
+        1: '现金',
+        2: '会员卡',
+        3: '微信',
+        4: '支付宝',
+        5: '临时卡',
+        6: '储值卡'
+    };
+    return methods[payway] || '其他';
+}
+
+/**
+ * 保存上机数据到 Supabase（使用 upsert 去重）
+ */
+async function saveSessionsToSupabase(sessions, sessionDate) {
+    console.log(`正在保存 ${sessions.length} 条上机记录到数据库 (${sessionDate})...`);
+
+    const config = getSupabaseConfig();
+    const supabaseUrl = `${config.url}/rest/v1`;
+    const headers = {
+        'apikey': config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+    };
+
+    // 分批上传
+    const batchSize = 50;
+    let uploaded = 0;
+
+    for (let i = 0; i < sessions.length; i += batchSize) {
+        const batch = sessions.slice(i, i + batchSize);
+
+        const response = await fetch(`${supabaseUrl}/sessions`, {
+            method: 'POST',
+            headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' },
+            body: JSON.stringify(batch)
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error(`批次上传失败:`, error);
+        } else {
+            uploaded += batch.length;
+        }
+    }
+
+    // 更新 session_dates 表
+    const totalRevenue = sessions.reduce((sum, s) =>
+        sum + (s.deposit_deducted || 0) + (s.principal_deducted || 0) + (s.bonus_deducted || 0), 0);
+
+    await fetch(`${supabaseUrl}/session_dates`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+            date: sessionDate,
+            record_count: sessions.length,
+            total_revenue: Math.round(totalRevenue * 100) / 100
+        })
+    });
+
+    console.log(`  已上传 ${uploaded} 条记录`);
+    return uploaded;
+}
+
+/**
+ * 主同步函数 - 上机数据
+ */
+async function syncSessionRecords(startDate, endDate) {
+    console.log('========================================');
+    console.log('上机数据同步');
+    console.log(`日期范围: ${startDate} 至 ${endDate}`);
+    console.log('========================================\n');
+
+    try {
+        // 1. 登录
+        const token = await login();
+
+        // 2. 生成日期列表
+        const dates = generateDateRange(startDate, endDate);
+        console.log(`\n将同步 ${dates.length} 天的数据\n`);
+
+        let totalRecords = 0;
+
+        // 3. 逐日同步
+        for (const date of dates) {
+            console.log(`\n--- 处理 ${date} ---`);
+
+            // 计算时间戳
+            const startTime = dateToTimestamp(date, false);
+            const endTime = dateToTimestamp(date, true);
+
+            // 获取当天数据
+            const records = await fetchAllSessions(token, startTime, endTime);
+
+            if (records.length === 0) {
+                console.log('  当天无上机数据');
+                continue;
+            }
+
+            // 转换数据
+            const sessions = transformSessionRecords(records);
+            console.log(`  转换得到 ${sessions.length} 条有效记录`);
+
+            // 保存到数据库
+            const saved = await saveSessionsToSupabase(sessions, date);
+            totalRecords += saved;
+        }
+
+        console.log('\n========================================');
+        console.log(`同步完成！共上传 ${totalRecords} 条上机记录`);
+        console.log('========================================');
+
+        return { success: true, total: totalRecords };
+
+    } catch (error) {
+        console.error('同步失败:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 // 导出供浏览器使用
 if (typeof window !== 'undefined') {
     window.syncProductSales = syncProductSales;
@@ -348,6 +607,12 @@ if (typeof window !== 'undefined') {
     window.transformOrdersToProducts = transformOrdersToProducts;
     window.saveToSupabase = saveToSupabase;
     window.generateDateRange = generateDateRange;
+    // 上机数据同步函数
+    window.fetchAllSessions = fetchAllSessions;
+    window.transformSessionRecords = transformSessionRecords;
+    window.saveSessionsToSupabase = saveSessionsToSupabase;
+    window.syncSessionRecords = syncSessionRecords;
+    window.dateToTimestamp = dateToTimestamp;
 }
 
 // Node.js 命令行执行

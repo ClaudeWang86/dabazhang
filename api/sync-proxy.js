@@ -7,6 +7,7 @@ const API_CONFIG = {
     baseUrl: 'https://www.yisbar.com',
     loginEndpoint: '/netbar/login/web/code',
     salesEndpoint: '/good/getOrderSalesByPage',
+    sessionsEndpoint: '/netbar/admin/netbarOnlineRecord/select',
     account: 'tcdjhmd1',
     password: '147258',
     gid: 80014,
@@ -68,6 +69,34 @@ export default async function handler(req, res) {
                     'token': token
                 },
                 body: params.toString()
+            });
+
+            const data = await response.json();
+            return res.status(200).json(data);
+
+        } else if (action === 'sessions') {
+            // 获取上机记录数据
+            const { startTime, endTime } = req.query;
+            if (!token || !startTime || !endTime) {
+                return res.status(400).json({ error: 'Missing token or time parameters' });
+            }
+
+            const params = new URLSearchParams({
+                'gidList[0]': API_CONFIG.gid,
+                'pageIndex': page,
+                'pageSize': pageSize,
+                'starttime': startTime,
+                'endtime': endTime
+            });
+
+            const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.sessionsEndpoint}?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': 'https://admin.yisbar.com',
+                    'source': String(API_CONFIG.source),
+                    'token': token
+                }
             });
 
             const data = await response.json();

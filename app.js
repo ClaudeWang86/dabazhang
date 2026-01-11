@@ -24,6 +24,8 @@ let selectedProductDateRange = { start: null, end: null };
 let productUploadDateRange = { start: null, end: null };
 let syncDatePickerInstance = null;
 let syncDateRange = { start: null, end: null };
+let sessionSyncDatePickerInstance = null;
+let sessionSyncDateRange = { start: null, end: null };
 
 // DOM 元素
 const fileInput = document.getElementById('fileInput');
@@ -47,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupProductFileUpload();
     setupProductDragDrop();
     setupSyncButtons();
+    setupSessionSyncButtons();
     window.addEventListener('resize', handleResize);
 
     // 测试数据库连接并加载日期数据
@@ -1134,19 +1137,10 @@ function setupProductButtons() {
     document.getElementById('previewProductBtn').addEventListener('click', previewProductOnly);
 }
 
-// 设置同步按钮事件
+// 设置同步按钮事件（同步页面的按钮事件）
 function setupSyncButtons() {
-    document.getElementById('showSyncBtn').addEventListener('click', () => {
-        document.getElementById('syncSection').classList.remove('hidden');
-        initSyncDatePicker();
-    });
-
-    document.getElementById('closeSyncBtn').addEventListener('click', () => {
-        document.getElementById('syncSection').classList.add('hidden');
-    });
-
-    document.getElementById('startSyncBtn').addEventListener('click', startApiSync);
-    document.getElementById('clearProductDataBtn').addEventListener('click', clearAllProductData);
+    // 这些按钮在 setupSessionSyncButtons 中统一设置
+    document.getElementById('clearProductDataBtn')?.addEventListener('click', clearAllProductData);
 }
 
 // 清空全部商品数据
@@ -1194,12 +1188,13 @@ async function clearAllProductData() {
     }
 }
 
-// 初始化同步日期选择器
+// 初始化同步日期选择器（使用两个独立的日期输入框）
 function initSyncDatePicker() {
-    if (syncDatePickerInstance) {
-        syncDatePickerInstance.destroy();
-    }
+    initProductSyncDatePicker();
+}
 
+// 初始化商品同步日期选择器
+function initProductSyncDatePicker() {
     // 默认选择最近 7 天
     const today = new Date();
     const weekAgo = new Date(today);
@@ -1208,36 +1203,44 @@ function initSyncDatePicker() {
     // 已有数据的日期列表
     const datesToMark = productAvailableDates.map(d => d.date);
 
-    syncDatePickerInstance = flatpickr('#syncDatePicker', {
-        mode: 'range',
+    // 开始日期选择器
+    flatpickr('#productSyncStartDate', {
         dateFormat: 'Y-m-d',
         locale: 'zh',
-        inline: false,
-        showMonths: 1,
-        defaultDate: [weekAgo, today],
+        defaultDate: weekAgo,
         maxDate: today,
         onDayCreate: function(dObj, dStr, fp, dayElem) {
             const dateStr = dayElem.dateObj.toISOString().split('T')[0];
             if (datesToMark.includes(dateStr)) {
                 dayElem.classList.add('has-data');
-                dayElem.title = '已有数据（将跳过）';
+                dayElem.title = '已有数据';
             }
         },
-        onChange: function(selectedDates, dateStr, instance) {
-            const startBtn = document.getElementById('startSyncBtn');
-            if (selectedDates.length === 1) {
-                const dateStr = formatDate(selectedDates[0]);
-                syncDateRange = { start: dateStr, end: dateStr };
-                startBtn.disabled = false;
-            } else if (selectedDates.length === 2) {
-                syncDateRange = {
-                    start: formatDate(selectedDates[0]),
-                    end: formatDate(selectedDates[1])
-                };
-                startBtn.disabled = false;
-            } else {
-                syncDateRange = { start: null, end: null };
-                startBtn.disabled = true;
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                syncDateRange.start = formatDate(selectedDates[0]);
+                updateProductSyncButtonState();
+            }
+        }
+    });
+
+    // 结束日期选择器
+    flatpickr('#productSyncEndDate', {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        defaultDate: today,
+        maxDate: today,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                dayElem.title = '已有数据';
+            }
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                syncDateRange.end = formatDate(selectedDates[0]);
+                updateProductSyncButtonState();
             }
         }
     });
@@ -1247,7 +1250,15 @@ function initSyncDatePicker() {
         start: formatDate(weekAgo),
         end: formatDate(today)
     };
-    document.getElementById('startSyncBtn').disabled = false;
+    updateProductSyncButtonState();
+}
+
+// 更新商品同步按钮状态
+function updateProductSyncButtonState() {
+    const startBtn = document.getElementById('startProductSyncBtn');
+    if (startBtn) {
+        startBtn.disabled = !(syncDateRange.start && syncDateRange.end);
+    }
 }
 
 // 添加同步日志
@@ -1281,14 +1292,15 @@ async function startApiSync() {
         return;
     }
 
-    const startBtn = document.getElementById('startSyncBtn');
-    const progressDiv = document.getElementById('syncProgress');
-    const progressFill = document.getElementById('syncProgressFill');
-    const progressText = document.getElementById('syncProgressText');
+    const startBtn = document.getElementById('startProductSyncBtn');
+    const progressDiv = document.getElementById('productSyncProgress');
+    const progressFill = document.getElementById('productSyncProgressFill');
+    const progressText = document.getElementById('productSyncProgressText');
+    const resultDiv = document.getElementById('productSyncResult');
 
     startBtn.disabled = true;
     progressDiv.classList.remove('hidden');
-    clearSyncLog();
+    resultDiv.classList.add('hidden');
 
     addSyncLog(`开始同步 ${syncDateRange.start} 至 ${syncDateRange.end} 的数据`, 'info');
 
@@ -1305,9 +1317,14 @@ async function startApiSync() {
         }
 
         if (datesToSync.length === 0) {
-            addSyncLog('所有日期都已有数据，无需同步', 'success');
             progressFill.style.width = '100%';
             progressText.textContent = '无需同步';
+            resultDiv.classList.remove('hidden');
+            resultDiv.className = 'sync-result success';
+            resultDiv.innerHTML = `
+                <h3>无需同步</h3>
+                <p>所选日期范围内的数据都已存在</p>
+            `;
             startBtn.disabled = false;
             return;
         }
@@ -1353,7 +1370,16 @@ async function startApiSync() {
 
         progressFill.style.width = '100%';
         progressText.textContent = '同步完成！';
-        addSyncLog(`同步完成！共同步 ${syncedDays} 天，${totalProducts} 种商品数据`, 'success');
+
+        // 显示结果
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result success';
+        resultDiv.innerHTML = `
+            <h3>同步成功</h3>
+            <div class="stat-highlight">${totalProducts} 种商品</div>
+            <p>共同步 ${syncedDays} 天数据</p>
+            <p>${syncDateRange.start} 至 ${syncDateRange.end}</p>
+        `;
 
         // 刷新商品日期数据
         await loadProductAvailableDates();
@@ -1363,8 +1389,281 @@ async function startApiSync() {
         }
 
     } catch (error) {
-        addSyncLog(`同步失败: ${error.message}`, 'error');
         progressText.textContent = '同步失败';
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result error';
+        resultDiv.innerHTML = `
+            <h3>同步失败</h3>
+            <p>${error.message}</p>
+        `;
+    } finally {
+        startBtn.disabled = false;
+    }
+}
+
+// =====================================================
+// 上机数据 API 同步功能
+// =====================================================
+
+// 设置上机同步按钮事件
+function setupSessionSyncButtons() {
+    document.getElementById('startSessionSyncBtn')?.addEventListener('click', startSessionApiSync);
+    document.getElementById('startProductSyncBtn')?.addEventListener('click', startApiSync);
+    document.getElementById('clearSessionDataBtn')?.addEventListener('click', clearAllSessionData);
+}
+
+// 清空全部上机数据
+async function clearAllSessionData() {
+    if (!confirm('确定要清空全部上机数据吗？此操作不可恢复！')) {
+        return;
+    }
+
+    addSessionSyncLog('正在清空上机数据...', 'info');
+
+    try {
+        // 删除 sessions 表中的所有数据
+        const { error: sessionsError } = await db
+            .from('sessions')
+            .delete()
+            .gte('id', 0);
+
+        if (sessionsError) throw sessionsError;
+
+        // 删除 session_dates 表中的所有数据
+        const { error: datesError } = await db
+            .from('session_dates')
+            .delete()
+            .gte('date', '1970-01-01');
+
+        if (datesError) throw datesError;
+
+        addSessionSyncLog('上机数据已清空！', 'success');
+
+        // 刷新日期数据
+        await loadAvailableDates();
+        if (datePickerInstance) {
+            datePickerInstance.destroy();
+            initDatePicker();
+        }
+
+        // 刷新同步面板的日期选择器
+        if (sessionSyncDatePickerInstance) {
+            sessionSyncDatePickerInstance.destroy();
+            initSessionSyncDatePicker();
+        }
+
+    } catch (error) {
+        addSessionSyncLog(`清空数据失败: ${error.message}`, 'error');
+    }
+}
+
+// 初始化上机同步日期选择器（使用两个独立的日期输入框）
+function initSessionSyncDatePicker() {
+    // 默认选择最近 7 天
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 6);
+
+    // 已有数据的日期列表
+    const datesToMark = availableDates.map(d => d.date);
+
+    // 开始日期选择器
+    flatpickr('#sessionSyncStartDate', {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        defaultDate: weekAgo,
+        maxDate: today,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                dayElem.title = '已有数据';
+            }
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                sessionSyncDateRange.start = formatDate(selectedDates[0]);
+                updateSessionSyncButtonState();
+            }
+        }
+    });
+
+    // 结束日期选择器
+    flatpickr('#sessionSyncEndDate', {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        defaultDate: today,
+        maxDate: today,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                dayElem.title = '已有数据';
+            }
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                sessionSyncDateRange.end = formatDate(selectedDates[0]);
+                updateSessionSyncButtonState();
+            }
+        }
+    });
+
+    // 设置默认值
+    sessionSyncDateRange = {
+        start: formatDate(weekAgo),
+        end: formatDate(today)
+    };
+    updateSessionSyncButtonState();
+}
+
+// 更新上机同步按钮状态
+function updateSessionSyncButtonState() {
+    const startBtn = document.getElementById('startSessionSyncBtn');
+    if (startBtn) {
+        startBtn.disabled = !(sessionSyncDateRange.start && sessionSyncDateRange.end);
+    }
+}
+
+// 添加上机同步日志
+function addSessionSyncLog(message, type = 'info') {
+    const logDiv = document.getElementById('sessionSyncLog');
+    logDiv.classList.remove('hidden');
+
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    logDiv.appendChild(entry);
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+// 清空上机同步日志
+function clearSessionSyncLog() {
+    const logDiv = document.getElementById('sessionSyncLog');
+    logDiv.innerHTML = '';
+    logDiv.classList.add('hidden');
+}
+
+// 检查某个日期是否已有上机数据
+function hasSessionDataForDate(date) {
+    return availableDates.some(d => d.date === date);
+}
+
+// 开始上机 API 同步
+async function startSessionApiSync() {
+    if (!sessionSyncDateRange.start || !sessionSyncDateRange.end) {
+        alert('请先选择同步日期范围');
+        return;
+    }
+
+    const startBtn = document.getElementById('startSessionSyncBtn');
+    const progressDiv = document.getElementById('sessionSyncProgress');
+    const progressFill = document.getElementById('sessionSyncProgressFill');
+    const progressText = document.getElementById('sessionSyncProgressText');
+    const resultDiv = document.getElementById('sessionSyncResult');
+
+    startBtn.disabled = true;
+    progressDiv.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+
+    addSessionSyncLog(`开始同步 ${sessionSyncDateRange.start} 至 ${sessionSyncDateRange.end} 的上机数据`, 'info');
+
+    try {
+        // 1. 生成日期列表
+        const allDates = generateDateRange(sessionSyncDateRange.start, sessionSyncDateRange.end);
+
+        // 2. 过滤出没有数据的日期
+        const datesToSync = allDates.filter(date => !hasSessionDataForDate(date));
+        const skippedDates = allDates.length - datesToSync.length;
+
+        if (skippedDates > 0) {
+            addSessionSyncLog(`跳过 ${skippedDates} 天（已有数据）`, 'info');
+        }
+
+        if (datesToSync.length === 0) {
+            progressFill.style.width = '100%';
+            progressText.textContent = '无需同步';
+            resultDiv.classList.remove('hidden');
+            resultDiv.className = 'sync-result success';
+            resultDiv.innerHTML = `
+                <h3>无需同步</h3>
+                <p>所选日期范围内的数据都已存在</p>
+            `;
+            startBtn.disabled = false;
+            return;
+        }
+
+        addSessionSyncLog(`需要同步 ${datesToSync.length} 天的数据`, 'info');
+
+        // 3. 登录获取 Token
+        addSessionSyncLog('正在登录...', 'info');
+        progressText.textContent = '正在登录...';
+        progressFill.style.width = '10%';
+
+        const token = await login();
+        addSessionSyncLog('登录成功！', 'success');
+
+        let totalRecords = 0;
+        let syncedDays = 0;
+
+        // 4. 逐日同步（只同步没有数据的日期）
+        for (let i = 0; i < datesToSync.length; i++) {
+            const date = datesToSync[i];
+            addSessionSyncLog(`处理 ${date}...`, 'info');
+            progressText.textContent = `同步中... ${i + 1}/${datesToSync.length} 天`;
+            progressFill.style.width = `${10 + (i / datesToSync.length) * 80}%`;
+
+            // 计算时间戳
+            const startTime = dateToTimestamp(date, false);
+            const endTime = dateToTimestamp(date, true);
+
+            // 获取当天数据
+            const records = await fetchAllSessions(token, startTime, endTime);
+
+            if (records.length === 0) {
+                addSessionSyncLog(`${date}: 无上机数据`, 'info');
+                continue;
+            }
+
+            // 转换数据
+            const sessions = transformSessionRecords(records);
+            addSessionSyncLog(`${date}: 获取到 ${records.length} 条记录，${sessions.length} 条有效`, 'info');
+
+            // 保存到数据库
+            const saved = await saveSessionsToSupabase(sessions, date);
+            totalRecords += saved;
+            syncedDays++;
+            addSessionSyncLog(`${date}: 已保存 ${saved} 条记录`, 'success');
+        }
+
+        progressFill.style.width = '100%';
+        progressText.textContent = '同步完成！';
+
+        // 显示结果
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result success';
+        resultDiv.innerHTML = `
+            <h3>同步成功</h3>
+            <div class="stat-highlight">${totalRecords} 条记录</div>
+            <p>共同步 ${syncedDays} 天数据</p>
+            <p>${sessionSyncDateRange.start} 至 ${sessionSyncDateRange.end}</p>
+        `;
+
+        // 刷新日期数据
+        await loadAvailableDates();
+        if (datePickerInstance) {
+            datePickerInstance.destroy();
+            initDatePicker();
+        }
+
+    } catch (error) {
+        progressText.textContent = '同步失败';
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result error';
+        resultDiv.innerHTML = `
+            <h3>同步失败</h3>
+            <p>${error.message}</p>
+        `;
     } finally {
         startBtn.disabled = false;
     }
