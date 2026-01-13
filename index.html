@@ -27,6 +27,7 @@
         <div class="nav-links">
             <a href="#features">设施服务</a>
             <a href="#pricing">会员价格</a>
+            <a href="#layout">座位分布</a>
             <a href="#gallery">环境展示</a>
             <a href="#contact">联系我们</a>
             <a href="dashboard.html" class="nav-admin">管理后台</a>
@@ -255,6 +256,140 @@
         </div>
     </section>
 
+    <!-- Layout Section -->
+    <section class="layout-section" id="layout">
+        <div class="section-header">
+            <span class="section-tag">FLOOR PLAN</span>
+            <h2 class="section-title">座位分布</h2>
+            <p class="section-desc">61个专业机位，多种区域选择</p>
+        </div>
+        <div class="layout-container">
+            <div class="restroom-marker">洗手间</div>
+            <div class="entrance-marker">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                </svg>
+                入口
+            </div>
+            <div class="layout-map">
+                <!-- 包间区 (左侧) -->
+                <div class="layout-zone zone-baojian" data-zone="包间区">
+                    <div class="seat-grid">
+                        <span class="seat">36</span>
+                        <span class="seat">37</span>
+                        <span class="seat">38</span>
+                        <span class="seat">39</span>
+                        <span class="seat vip">40</span>
+                        <span class="seat vip">41</span>
+                        <span class="seat">42</span>
+                        <span class="seat">43</span>
+                        <span class="seat">54</span>
+                        <span class="seat">55</span>
+                        <span class="seat">56</span>
+                    </div>
+                </div>
+
+                <!-- 网咖区 (右上方主区域) -->
+                <div class="layout-zone zone-wangka" data-zone="网咖区">
+                    <div class="seat-grid">
+                        <span class="seat">34</span>
+                        <span class="seat">35</span>
+                        <span class="seat">26</span>
+                        <span class="seat">25</span>
+                        <span class="seat">24</span>
+                        <span class="seat">23</span>
+                        <span class="seat">22</span>
+                        <span class="seat">21</span>
+                        <span class="seat">17</span>
+                        <span class="seat">16</span>
+                        <span class="seat">09</span>
+                        <span class="seat">08</span>
+                        <span class="seat">01</span>
+                        <span class="seat">18</span>
+                        <span class="seat">15</span>
+                        <span class="seat">10</span>
+                        <span class="seat">07</span>
+                        <span class="seat">02</span>
+                        <span class="seat">19</span>
+                        <span class="seat">14</span>
+                        <span class="seat">11</span>
+                        <span class="seat">06</span>
+                        <span class="seat">03</span>
+                        <span class="seat">20</span>
+                        <span class="seat">13</span>
+                        <span class="seat">12</span>
+                        <span class="seat">05</span>
+                        <span class="seat">04</span>
+                    </div>
+                </div>
+
+                <!-- 电竞区 (中间) -->
+                <div class="layout-zone zone-dianjing" data-zone="电竞区">
+                    <div class="seat-grid">
+                        <span class="seat">46</span>
+                        <span class="seat">47</span>
+                        <span class="seat">33</span>
+                        <span class="seat">44</span>
+                        <span class="seat">45</span>
+                        <span class="seat">32</span>
+                        <span class="seat">50</span>
+                        <span class="seat">51</span>
+                        <span class="seat">48</span>
+                        <span class="seat">49</span>
+                    </div>
+                </div>
+
+                <!-- 竞技区 (右侧) -->
+                <div class="layout-zone zone-jingji" data-zone="竞技区">
+                    <div class="seat-grid">
+                        <span class="seat">52</span>
+                        <span class="seat">53</span>
+                        <span class="seat">61</span>
+                        <span class="seat">60</span>
+                        <span class="seat">59</span>
+                        <span class="seat">58</span>
+                        <span class="seat">57</span>
+                    </div>
+                </div>
+
+                <!-- 休闲区 (底部) -->
+                <div class="layout-zone zone-xiuxian" data-zone="休闲区">
+                    <div class="seat-grid">
+                        <span class="seat">27</span>
+                        <span class="seat">28</span>
+                        <span class="seat">29</span>
+                        <span class="seat">30</span>
+                        <span class="seat">31</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图例 -->
+            <div class="layout-legend">
+                <div class="legend-item">
+                    <span class="legend-color wangka"></span>
+                    <span>网咖区 (01-26)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color baojian"></span>
+                    <span>包间区 (36-56)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color dianjing"></span>
+                    <span>电竞区 (32-51)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color jingji"></span>
+                    <span>竞技区 (52-61)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color xiuxian"></span>
+                    <span>休闲区 (27-31)</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Gallery Section -->
     <section class="gallery" id="gallery">
         <div class="section-header">
@@ -360,6 +495,7 @@
             <div class="footer-links">
                 <a href="#features">设施服务</a>
                 <a href="#pricing">会员价格</a>
+                <a href="#layout">座位分布</a>
                 <a href="#gallery">环境展示</a>
                 <a href="#contact">联系我们</a>
             </div>
