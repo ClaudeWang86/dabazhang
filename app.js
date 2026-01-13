@@ -2728,3 +2728,551 @@ function setupDeleteButtons() {
     document.getElementById('deleteProductRangeBtn')?.addEventListener('click', deleteProductDataByRange);
     document.getElementById('deleteAllProductBtn')?.addEventListener('click', deleteAllProductData);
 }
+
+// =====================================================
+// SEAT MAP FUNCTIONALITY
+// =====================================================
+
+let seatMapDateRange = { start: null, end: null };
+let seatUsageData = {};
+let seatMapTooltip = null;
+let seatMapDisplayMode = 'count'; // 'count' or 'utilization'
+let seatMapTotalHours = 0; // 选定日期范围的总小时数（每天按24小时计算）
+
+// 座位区域映射
+const SEAT_ZONES = {
+    // 大厅 1-20
+    '01': 'dating', '02': 'dating', '03': 'dating', '04': 'dating', '05': 'dating',
+    '06': 'dating', '07': 'dating', '08': 'dating', '09': 'dating', '10': 'dating',
+    '11': 'dating', '12': 'dating', '13': 'dating', '14': 'dating', '15': 'dating',
+    '16': 'dating', '17': 'dating', '18': 'dating', '19': 'dating', '20': 'dating',
+    // 单人包 21-33
+    '21': 'danren', '22': 'danren', '23': 'danren', '24': 'danren', '25': 'danren',
+    '26': 'danren', '27': 'danren', '28': 'danren', '29': 'danren', '30': 'danren',
+    '31': 'danren', '32': 'danren', '33': 'danren',
+    // 蚂蚁双人包 34-41
+    '34': 'mayi', '35': 'mayi', '36': 'mayi', '37': 'mayi',
+    '38': 'mayi', '39': 'mayi', '40': 'mayi', '41': 'mayi',
+    // 卓威双人包 42-53
+    '42': 'zhuwei2', '43': 'zhuwei2', '44': 'zhuwei2', '45': 'zhuwei2',
+    '46': 'zhuwei2', '47': 'zhuwei2', '48': 'zhuwei2', '49': 'zhuwei2',
+    '50': 'zhuwei2', '51': 'zhuwei2', '52': 'zhuwei2', '53': 'zhuwei2',
+    // 卓威三人包 54-56
+    '54': 'zhuwei3', '55': 'zhuwei3', '56': 'zhuwei3',
+    // 卓威五人包 57-61
+    '57': 'zhuwei5', '58': 'zhuwei5', '59': 'zhuwei5', '60': 'zhuwei5', '61': 'zhuwei5'
+};
+
+const ZONE_NAMES = {
+    'dating': '大厅',
+    'danren': '单人包',
+    'mayi': '蚂蚁双人包',
+    'zhuwei2': '卓威双人包',
+    'zhuwei3': '卓威三人包',
+    'zhuwei5': '卓威五人包'
+};
+
+// 初始化座位分布日期选择器
+function initSeatMapDatePicker() {
+    const startInput = document.getElementById('seatMapStartDate');
+    const endInput = document.getElementById('seatMapEndDate');
+    const loadBtn = document.getElementById('loadSeatMapBtn');
+
+    if (!startInput || !endInput) return;
+
+    // 获取有数据的日期列表
+    const datesToMark = availableDates.map(d => d.date);
+
+    const commonConfig = {
+        locale: 'zh',
+        dateFormat: 'Y-m-d',
+        maxDate: 'today',
+        disableMobile: true,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                // 添加提示
+                const dateInfo = availableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.record_count} 条记录`;
+                }
+            }
+        }
+    };
+
+    flatpickr(startInput, {
+        ...commonConfig,
+        onChange: (selectedDates) => {
+            if (selectedDates.length > 0) {
+                seatMapDateRange.start = formatDate(selectedDates[0]);
+            }
+            updateSeatMapLoadButton();
+        }
+    });
+
+    flatpickr(endInput, {
+        ...commonConfig,
+        onChange: (selectedDates) => {
+            if (selectedDates.length > 0) {
+                seatMapDateRange.end = formatDate(selectedDates[0]);
+            }
+            updateSeatMapLoadButton();
+        }
+    });
+
+    // 加载按钮事件
+    loadBtn?.addEventListener('click', loadSeatMapData);
+
+    // 创建 tooltip 元素
+    createSeatMapTooltip();
+}
+
+function updateSeatMapLoadButton() {
+    const loadBtn = document.getElementById('loadSeatMapBtn');
+    if (loadBtn) {
+        loadBtn.disabled = !(seatMapDateRange.start && seatMapDateRange.end);
+    }
+}
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// 创建 tooltip 元素
+function createSeatMapTooltip() {
+    if (seatMapTooltip) return;
+    seatMapTooltip = document.createElement('div');
+    seatMapTooltip.className = 'seat-tooltip';
+    seatMapTooltip.style.display = 'none';
+    document.body.appendChild(seatMapTooltip);
+}
+
+// 加载座位使用数据
+async function loadSeatMapData() {
+    if (!seatMapDateRange.start || !seatMapDateRange.end) {
+        alert('请选择日期范围');
+        return;
+    }
+
+    const loadBtn = document.getElementById('loadSeatMapBtn');
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = '<span>加载中...</span>';
+
+    try {
+        // 计算选定日期范围的总小时数
+        const startDate = new Date(seatMapDateRange.start);
+        const endDate = new Date(seatMapDateRange.end);
+        const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        seatMapTotalHours = daysDiff * 24; // 每天24小时
+
+        // 从数据库查询上机记录
+        const { data, error } = await db
+            .from('sessions')
+            .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
+            .gte('start_time', `${seatMapDateRange.start}T00:00:00Z`)
+            .lte('start_time', `${seatMapDateRange.end}T23:59:59Z`);
+
+        if (error) throw error;
+
+        // 处理数据
+        processSeatData(data || []);
+
+        // 显示结果
+        document.getElementById('seatMapStats')?.classList.remove('hidden');
+        document.getElementById('seatMapContainer')?.classList.remove('hidden');
+        document.getElementById('seatMapModeSwitch')?.classList.remove('hidden');
+
+        // 绑定模式切换事件
+        bindModeSwitchEvents();
+
+    } catch (err) {
+        console.error('加载座位数据失败:', err);
+        alert('加载数据失败: ' + err.message);
+    } finally {
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <span>查询上座情况</span>
+        `;
+    }
+}
+
+// 处理座位数据
+function processSeatData(records) {
+    seatUsageData = {};
+
+    // 统计每个座位的使用次数、收入和时长
+    records.forEach(r => {
+        // 从 machine 字段提取座位号（如 "TC01" -> "01"）
+        let seatNum = extractSeatNumber(r.machine);
+        if (!seatNum) return;
+
+        if (!seatUsageData[seatNum]) {
+            seatUsageData[seatNum] = {
+                count: 0,
+                revenue: 0,
+                totalHours: 0, // 总使用时长（小时）
+                area: r.area || ZONE_NAMES[SEAT_ZONES[seatNum]] || '未知'
+            };
+        }
+
+        seatUsageData[seatNum].count++;
+        seatUsageData[seatNum].revenue +=
+            (r.deposit_deducted || 0) + (r.principal_deducted || 0) + (r.bonus_deducted || 0);
+
+        // 计算使用时长
+        if (r.start_time && r.end_time) {
+            const start = new Date(r.start_time);
+            const end = new Date(r.end_time);
+            const hours = (end - start) / (1000 * 60 * 60);
+            if (hours > 0 && hours < 48) { // 排除异常数据
+                seatUsageData[seatNum].totalHours += hours;
+            }
+        }
+    });
+
+    // 计算每个座位的利用率
+    for (const seatNum in seatUsageData) {
+        const data = seatUsageData[seatNum];
+        data.utilization = seatMapTotalHours > 0 ? (data.totalHours / seatMapTotalHours * 100) : 0;
+    }
+
+    // 更新统计卡片
+    updateSeatMapStats(records);
+
+    // 更新座位图
+    updateSeatMapDisplay();
+
+    // 更新排行榜
+    updateSeatRanking();
+
+    // 绑定座位点击和悬停事件
+    bindSeatEvents();
+}
+
+// 从机器名提取座位号
+function extractSeatNumber(machine) {
+    if (!machine) return null;
+
+    // 尝试匹配各种格式: TC01, 01, 1, 太初01 等
+    const match = machine.match(/(\d{1,2})$/);
+    if (match) {
+        return match[1].padStart(2, '0');
+    }
+    return null;
+}
+
+// 更新统计卡片
+function updateSeatMapStats(records) {
+    const totalSessions = records.length;
+    const usedSeats = Object.keys(seatUsageData).length;
+
+    // 找最热门座位
+    let hotSeat = '-';
+    let maxCount = 0;
+    for (const [seat, data] of Object.entries(seatUsageData)) {
+        if (data.count > maxCount) {
+            maxCount = data.count;
+            hotSeat = seat;
+        }
+    }
+
+    const avgUsage = usedSeats > 0 ? (totalSessions / usedSeats).toFixed(1) : 0;
+
+    document.getElementById('seatMapTotalSessions').textContent = totalSessions.toLocaleString();
+    document.getElementById('seatMapUsedSeats').textContent = `${usedSeats} / 61`;
+    document.getElementById('seatMapHotSeat').textContent = hotSeat !== '-' ? `${hotSeat}号 (${maxCount}次)` : '-';
+    document.getElementById('seatMapAvgUsage').textContent = avgUsage;
+}
+
+// 更新座位图显示
+function updateSeatMapDisplay() {
+    const seats = document.querySelectorAll('#seatMapFloorPlan .seat');
+
+    // 根据模式选择数据
+    const isUtilizationMode = seatMapDisplayMode === 'utilization';
+    const values = Object.values(seatUsageData)
+        .map(d => isUtilizationMode ? d.utilization : d.count)
+        .filter(v => v > 0)
+        .sort((a, b) => a - b);
+
+    // 计算分位数
+    const q25 = values[Math.floor(values.length * 0.25)] || (isUtilizationMode ? 5 : 1);
+    const q50 = values[Math.floor(values.length * 0.5)] || (isUtilizationMode ? 15 : 2);
+    const q75 = values[Math.floor(values.length * 0.75)] || (isUtilizationMode ? 30 : 5);
+
+    seats.forEach(seat => {
+        const seatNum = seat.dataset.seat;
+        const data = seatUsageData[seatNum];
+
+        // 清除之前的状态
+        seat.classList.remove('usage-low', 'usage-medium', 'usage-high', 'usage-very-high');
+        const existingBadge = seat.querySelector('.usage-badge');
+        if (existingBadge) existingBadge.remove();
+
+        if (data && data.count > 0) {
+            const value = isUtilizationMode ? data.utilization : data.count;
+
+            // 添加使用量等级
+            if (value <= q25) {
+                seat.classList.add('usage-low');
+            } else if (value <= q50) {
+                seat.classList.add('usage-medium');
+            } else if (value <= q75) {
+                seat.classList.add('usage-high');
+            } else {
+                seat.classList.add('usage-very-high');
+            }
+
+            // 添加徽章
+            const badge = document.createElement('span');
+            badge.className = 'usage-badge';
+            badge.textContent = isUtilizationMode ? `${value.toFixed(0)}%` : data.count;
+            seat.appendChild(badge);
+        }
+    });
+}
+
+// 更新座位排行榜
+function updateSeatRanking() {
+    const rankingList = document.getElementById('rankingList');
+    if (!rankingList) return;
+
+    const isUtilizationMode = seatMapDisplayMode === 'utilization';
+
+    // 排序
+    const sorted = Object.entries(seatUsageData)
+        .map(([seat, data]) => ({ seat, ...data }))
+        .sort((a, b) => isUtilizationMode ? b.utilization - a.utilization : b.count - a.count)
+        .slice(0, 20);
+
+    if (sorted.length === 0) {
+        rankingList.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">暂无数据</div>';
+        return;
+    }
+
+    rankingList.innerHTML = sorted.map((item, index) => {
+        let posClass = 'normal';
+        if (index === 0) posClass = 'gold';
+        else if (index === 1) posClass = 'silver';
+        else if (index === 2) posClass = 'bronze';
+
+        const zoneName = ZONE_NAMES[SEAT_ZONES[item.seat]] || '未知';
+        const displayValue = isUtilizationMode
+            ? `${item.utilization.toFixed(1)}%`
+            : `${item.count}次`;
+
+        return `
+            <div class="ranking-item" data-seat="${item.seat}">
+                <div class="ranking-position ${posClass}">${index + 1}</div>
+                <div class="ranking-seat">${item.seat}号<span>${zoneName}</span></div>
+                <div class="ranking-count">${displayValue}</div>
+            </div>
+        `;
+    }).join('');
+
+    // 绑定排行榜点击事件
+    rankingList.querySelectorAll('.ranking-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const seatNum = item.dataset.seat;
+            showSeatDetail(seatNum);
+        });
+    });
+}
+
+// 绑定座位事件
+function bindSeatEvents() {
+    const seats = document.querySelectorAll('#seatMapFloorPlan .seat');
+
+    seats.forEach(seat => {
+        // 鼠标悬停
+        seat.addEventListener('mouseenter', (e) => {
+            const seatNum = seat.dataset.seat;
+            showSeatTooltip(e, seatNum);
+        });
+
+        seat.addEventListener('mousemove', (e) => {
+            if (seatMapTooltip && seatMapTooltip.style.display !== 'none') {
+                seatMapTooltip.style.left = (e.clientX + 15) + 'px';
+                seatMapTooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+
+        seat.addEventListener('mouseleave', () => {
+            hideSeatTooltip();
+        });
+
+        // 点击显示详情
+        seat.addEventListener('click', () => {
+            const seatNum = seat.dataset.seat;
+            showSeatDetail(seatNum);
+        });
+    });
+}
+
+// 显示座位 tooltip
+function showSeatTooltip(e, seatNum) {
+    if (!seatMapTooltip) return;
+
+    const data = seatUsageData[seatNum];
+    const zoneName = ZONE_NAMES[SEAT_ZONES[seatNum]] || '未知';
+
+    let content = `
+        <div class="seat-tooltip-title">${seatNum}号座位</div>
+        <div class="seat-tooltip-row">
+            <span class="seat-tooltip-label">区域</span>
+            <span class="seat-tooltip-value">${zoneName}</span>
+        </div>
+    `;
+
+    if (data && data.count > 0) {
+        content += `
+            <div class="seat-tooltip-row">
+                <span class="seat-tooltip-label">使用次数</span>
+                <span class="seat-tooltip-value">${data.count}次</span>
+            </div>
+            <div class="seat-tooltip-row">
+                <span class="seat-tooltip-label">总使用时长</span>
+                <span class="seat-tooltip-value">${data.totalHours.toFixed(1)}小时</span>
+            </div>
+            <div class="seat-tooltip-row">
+                <span class="seat-tooltip-label">利用率</span>
+                <span class="seat-tooltip-value">${data.utilization.toFixed(1)}%</span>
+            </div>
+            <div class="seat-tooltip-row">
+                <span class="seat-tooltip-label">总收入</span>
+                <span class="seat-tooltip-value">¥${data.revenue.toFixed(2)}</span>
+            </div>
+        `;
+    } else {
+        content += `
+            <div class="seat-tooltip-row">
+                <span class="seat-tooltip-label">状态</span>
+                <span class="seat-tooltip-value">无使用记录</span>
+            </div>
+        `;
+    }
+
+    seatMapTooltip.innerHTML = content;
+    seatMapTooltip.style.display = 'block';
+    seatMapTooltip.style.left = (e.clientX + 15) + 'px';
+    seatMapTooltip.style.top = (e.clientY + 15) + 'px';
+}
+
+// 隐藏 tooltip
+function hideSeatTooltip() {
+    if (seatMapTooltip) {
+        seatMapTooltip.style.display = 'none';
+    }
+}
+
+// 显示座位详情面板
+function showSeatDetail(seatNum) {
+    const panel = document.getElementById('seatDetailPanel');
+    const content = document.getElementById('seatDetailContent');
+
+    if (!panel || !content) return;
+
+    const data = seatUsageData[seatNum];
+    const zoneName = ZONE_NAMES[SEAT_ZONES[seatNum]] || '未知';
+
+    let html = `
+        <div class="seat-detail-item">
+            <span class="seat-detail-label">座位号</span>
+            <span class="seat-detail-value highlight">${seatNum}</span>
+        </div>
+        <div class="seat-detail-item">
+            <span class="seat-detail-label">所属区域</span>
+            <span class="seat-detail-value">${zoneName}</span>
+        </div>
+    `;
+
+    if (data && data.count > 0) {
+        const avgRevenue = data.revenue / data.count;
+        const avgDuration = data.totalHours / data.count;
+        html += `
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">使用次数</span>
+                <span class="seat-detail-value highlight">${data.count} 次</span>
+            </div>
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">总使用时长</span>
+                <span class="seat-detail-value">${data.totalHours.toFixed(1)} 小时</span>
+            </div>
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">利用率</span>
+                <span class="seat-detail-value highlight">${data.utilization.toFixed(1)}%</span>
+            </div>
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">平均每次时长</span>
+                <span class="seat-detail-value">${avgDuration.toFixed(1)} 小时</span>
+            </div>
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">总收入</span>
+                <span class="seat-detail-value">¥${data.revenue.toFixed(2)}</span>
+            </div>
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">平均每次消费</span>
+                <span class="seat-detail-value">¥${avgRevenue.toFixed(2)}</span>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="seat-detail-item">
+                <span class="seat-detail-label">状态</span>
+                <span class="seat-detail-value">该日期范围内无使用记录</span>
+            </div>
+        `;
+    }
+
+    content.innerHTML = html;
+    panel.classList.remove('hidden');
+}
+
+// 绑定模式切换事件
+function bindModeSwitchEvents() {
+    const modeTabs = document.querySelectorAll('#seatMapModeSwitch .mode-tab');
+
+    modeTabs.forEach(tab => {
+        // 移除旧事件再添加新事件（防止重复绑定）
+        tab.replaceWith(tab.cloneNode(true));
+    });
+
+    // 重新获取元素并绑定事件
+    document.querySelectorAll('#seatMapModeSwitch .mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const mode = tab.dataset.mode;
+            if (mode === seatMapDisplayMode) return;
+
+            // 更新模式
+            seatMapDisplayMode = mode;
+
+            // 更新 tab 样式
+            document.querySelectorAll('#seatMapModeSwitch .mode-tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            tab.classList.add('active');
+
+            // 更新显示
+            updateSeatMapDisplay();
+            updateSeatRanking();
+        });
+    });
+}
+
+// 在页面加载时初始化座位图
+document.addEventListener('DOMContentLoaded', () => {
+    // 延迟初始化，等待 tab 切换
+    const seatMapLink = document.querySelector('[data-tab="seatMap"]');
+    if (seatMapLink) {
+        seatMapLink.addEventListener('click', () => {
+            setTimeout(initSeatMapDatePicker, 100);
+        });
+    }
+});

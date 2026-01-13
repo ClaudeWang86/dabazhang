@@ -83,6 +83,15 @@
                         </svg>
                         <span>商品销售</span>
                     </a>
+                    <a href="#" class="sidebar-link" data-tab="seatMap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        <span>座位分布</span>
+                    </a>
                 </nav>
             </div>
             <div class="sidebar-section">
@@ -589,6 +598,260 @@
                 </div>
             </section>
         </div><!-- 结束 syncProductTab -->
+
+        <!-- ========== 座位分布区域 ========== -->
+        <div class="tab-content" id="seatMapTab">
+            <section class="seat-map-page">
+                <div class="seat-map-header">
+                    <h2>座位上座分布</h2>
+                    <p class="seat-map-description">查看指定日期范围内各座位的使用情况</p>
+                </div>
+
+                <!-- 日期选择区域 -->
+                <div class="seat-map-date-section">
+                    <label>选择查询日期范围：</label>
+                    <div class="date-range-inputs">
+                        <input type="text" id="seatMapStartDate" placeholder="开始日期" readonly>
+                        <span class="date-separator">至</span>
+                        <input type="text" id="seatMapEndDate" placeholder="结束日期" readonly>
+                    </div>
+                    <div class="seat-map-actions">
+                        <button class="btn btn-primary" id="loadSeatMapBtn" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <span>查询上座情况</span>
+                        </button>
+                    </div>
+
+                    <!-- 显示模式切换 -->
+                    <div class="seat-map-mode-switch hidden" id="seatMapModeSwitch">
+                        <span class="mode-label">显示模式：</span>
+                        <div class="mode-tabs">
+                            <button class="mode-tab active" data-mode="count">使用次数</button>
+                            <button class="mode-tab" data-mode="utilization">利用率</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 统计概览卡片 -->
+                <div class="seat-map-stats hidden" id="seatMapStats">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="seatMapTotalSessions">-</div>
+                            <div class="stat-label">总上机人次</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🪑</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="seatMapUsedSeats">-</div>
+                            <div class="stat-label">使用座位数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="seatMapHotSeat">-</div>
+                            <div class="stat-label">最热门座位</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="seatMapAvgUsage">-</div>
+                            <div class="stat-label">平均使用次数</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 座位分布图容器 -->
+                <div class="seat-map-container hidden" id="seatMapContainer">
+                    <div class="layout-container">
+                        <div class="restroom-marker">洗手间</div>
+                        <div class="entrance-marker">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/>
+                            </svg>
+                            入口
+                        </div>
+
+                        <!-- 座位分布图 -->
+                        <div class="floor-plan" id="seatMapFloorPlan">
+                            <!-- 顶部一行 -->
+                            <div class="floor-row top-row">
+                                <span class="seat mayi" data-seat="34">34</span>
+                                <span class="seat mayi" data-seat="35">35</span>
+                                <span class="seat danren" data-seat="26">26</span>
+                                <span class="seat danren" data-seat="25">25</span>
+                                <span class="seat danren" data-seat="24">24</span>
+                                <span class="seat danren" data-seat="23">23</span>
+                                <span class="seat danren" data-seat="22">22</span>
+                                <span class="seat danren" data-seat="21">21</span>
+                            </div>
+
+                            <!-- 主体区域 -->
+                            <div class="floor-main">
+                                <!-- 左列 -->
+                                <div class="floor-col left-col">
+                                    <span class="seat mayi" data-seat="36">36</span>
+                                    <span class="seat mayi" data-seat="37">37</span>
+                                    <span class="seat mayi" data-seat="38">38</span>
+                                    <span class="seat mayi" data-seat="39">39</span>
+                                    <span class="seat mayi" data-seat="40">40</span>
+                                    <span class="seat mayi" data-seat="41">41</span>
+                                    <span class="seat zhuwei3" data-seat="56">56</span>
+                                    <span class="seat zhuwei3" data-seat="55">55</span>
+                                    <span class="seat zhuwei3" data-seat="54">54</span>
+                                    <span class="seat zhuwei2" data-seat="42">42</span>
+                                    <span class="seat zhuwei2" data-seat="43">43</span>
+                                </div>
+
+                                <!-- 中间区域 -->
+                                <div class="floor-center">
+                                    <div class="hall-area">
+                                        <div class="hall-group">
+                                            <span class="seat dating" data-seat="17">17</span>
+                                            <span class="seat dating" data-seat="16">16</span>
+                                            <span class="seat dating" data-seat="18">18</span>
+                                            <span class="seat dating" data-seat="15">15</span>
+                                            <span class="seat dating" data-seat="19">19</span>
+                                            <span class="seat dating" data-seat="14">14</span>
+                                            <span class="seat dating" data-seat="20">20</span>
+                                            <span class="seat dating" data-seat="13">13</span>
+                                        </div>
+                                        <div class="hall-group">
+                                            <span class="seat dating" data-seat="09">09</span>
+                                            <span class="seat dating" data-seat="08">08</span>
+                                            <span class="seat dating" data-seat="10">10</span>
+                                            <span class="seat dating" data-seat="07">07</span>
+                                            <span class="seat dating" data-seat="11">11</span>
+                                            <span class="seat dating" data-seat="06">06</span>
+                                            <span class="seat dating" data-seat="12">12</span>
+                                            <span class="seat dating" data-seat="05">05</span>
+                                        </div>
+                                        <div class="hall-group single-col">
+                                            <span class="seat dating" data-seat="01">01</span>
+                                            <span class="seat dating" data-seat="02">02</span>
+                                            <span class="seat dating" data-seat="03">03</span>
+                                            <span class="seat dating" data-seat="04">04</span>
+                                        </div>
+                                        <div class="seat-row-52-53">
+                                            <span class="seat zhuwei2" data-seat="52">52</span>
+                                            <span class="seat zhuwei2" data-seat="53">53</span>
+                                        </div>
+                                    </div>
+                                    <div class="gaming-area">
+                                        <div class="gaming-grid">
+                                            <div class="gaming-col">
+                                                <div class="gaming-row">
+                                                    <span class="seat zhuwei2" data-seat="46">46</span>
+                                                    <span class="seat zhuwei2" data-seat="47">47</span>
+                                                </div>
+                                                <div class="gaming-row">
+                                                    <span class="seat zhuwei2" data-seat="44">44</span>
+                                                    <span class="seat zhuwei2" data-seat="45">45</span>
+                                                </div>
+                                            </div>
+                                            <div class="gaming-col center-col">
+                                                <span class="seat danren" data-seat="33">33</span>
+                                                <span class="seat danren" data-seat="32">32</span>
+                                            </div>
+                                            <div class="gaming-col">
+                                                <div class="gaming-row">
+                                                    <span class="seat zhuwei2" data-seat="50">50</span>
+                                                    <span class="seat zhuwei2" data-seat="51">51</span>
+                                                </div>
+                                                <div class="gaming-row">
+                                                    <span class="seat zhuwei2" data-seat="48">48</span>
+                                                    <span class="seat zhuwei2" data-seat="49">49</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-57-61">
+                                            <span class="seat zhuwei5" data-seat="61">61</span>
+                                            <span class="seat zhuwei5" data-seat="60">60</span>
+                                            <span class="seat zhuwei5" data-seat="59">59</span>
+                                            <span class="seat zhuwei5" data-seat="58">58</span>
+                                            <span class="seat zhuwei5" data-seat="57">57</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 底部一行 -->
+                            <div class="floor-row bottom-row">
+                                <span class="seat danren" data-seat="27">27</span>
+                                <span class="seat danren" data-seat="28">28</span>
+                                <span class="seat danren" data-seat="29">29</span>
+                                <span class="seat danren" data-seat="30">30</span>
+                                <span class="seat danren" data-seat="31">31</span>
+                            </div>
+                        </div>
+
+                        <!-- 图例 -->
+                        <div class="layout-legend">
+                            <div class="legend-item">
+                                <span class="legend-color dating"></span>
+                                <span>大厅 (01-20)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color danren"></span>
+                                <span>单人包 (21-33)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color mayi"></span>
+                                <span>蚂蚁双人包 (34-41)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color zhuwei2"></span>
+                                <span>卓威双人包 (42-53)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color zhuwei3"></span>
+                                <span>卓威三人包 (54-56)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color zhuwei5"></span>
+                                <span>卓威五人包 (57-61)</span>
+                            </div>
+                        </div>
+
+                        <!-- 使用率图例 -->
+                        <div class="usage-legend">
+                            <span class="usage-legend-title">使用频率：</span>
+                            <div class="usage-scale">
+                                <span class="usage-level low"></span>
+                                <span class="usage-label">低</span>
+                                <span class="usage-level medium"></span>
+                                <span class="usage-label">中</span>
+                                <span class="usage-level high"></span>
+                                <span class="usage-label">高</span>
+                                <span class="usage-level very-high"></span>
+                                <span class="usage-label">极高</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 座位详情面板 -->
+                    <div class="seat-detail-panel hidden" id="seatDetailPanel">
+                        <h3>座位详情</h3>
+                        <div class="seat-detail-content" id="seatDetailContent">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+
+                    <!-- 座位排行榜 -->
+                    <div class="seat-ranking" id="seatRanking">
+                        <h3>座位使用排行</h3>
+                        <div class="ranking-list" id="rankingList">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div><!-- 结束 seatMapTab -->
 
             </div><!-- 结束 container -->
         </main><!-- 结束 main-content -->
