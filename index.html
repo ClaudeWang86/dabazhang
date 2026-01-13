@@ -271,120 +271,156 @@
                 </svg>
                 入口
             </div>
-            <div class="layout-map">
-                <!-- 包间区 (左侧) -->
-                <div class="layout-zone zone-baojian" data-zone="包间区">
-                    <div class="seat-grid">
-                        <span class="seat">36</span>
-                        <span class="seat">37</span>
-                        <span class="seat">38</span>
-                        <span class="seat">39</span>
-                        <span class="seat vip">40</span>
-                        <span class="seat vip">41</span>
-                        <span class="seat">42</span>
-                        <span class="seat">43</span>
-                        <span class="seat">54</span>
-                        <span class="seat">55</span>
-                        <span class="seat">56</span>
+
+            <!-- 严格按照图片位置布局 -->
+            <div class="floor-plan">
+                <!-- 顶部一行: 34,35,26,25,24,23,22,21 等间距 -->
+                <div class="floor-row top-row">
+                    <span class="seat mayi">34</span>
+                    <span class="seat mayi">35</span>
+                    <span class="seat danren">26</span>
+                    <span class="seat danren">25</span>
+                    <span class="seat danren">24</span>
+                    <span class="seat danren">23</span>
+                    <span class="seat danren">22</span>
+                    <span class="seat danren">21</span>
+                </div>
+
+                <!-- 主体区域 -->
+                <div class="floor-main">
+                    <!-- 左列: 36-41, 56-54, 42-43 -->
+                    <div class="floor-col left-col">
+                        <span class="seat mayi">36</span>
+                        <span class="seat mayi">37</span>
+                        <span class="seat mayi">38</span>
+                        <span class="seat mayi">39</span>
+                        <span class="seat mayi">40</span>
+                        <span class="seat mayi">41</span>
+                        <span class="seat zhuwei3">56</span>
+                        <span class="seat zhuwei3">55</span>
+                        <span class="seat zhuwei3">54</span>
+                        <span class="seat zhuwei2">42</span>
+                        <span class="seat zhuwei2">43</span>
+                    </div>
+
+                    <!-- 中间区域 -->
+                    <div class="floor-center">
+                        <!-- 大厅区分三组 + 右列: 13-20 | 5-12 | 1-4 | 52-61 -->
+                        <div class="hall-area">
+                            <!-- 第一组: 17,16 / 18,15 / 19,14 / 20,13 -->
+                            <div class="hall-group">
+                                <span class="seat dating">17</span>
+                                <span class="seat dating">16</span>
+                                <span class="seat dating">18</span>
+                                <span class="seat dating">15</span>
+                                <span class="seat dating">19</span>
+                                <span class="seat dating">14</span>
+                                <span class="seat dating">20</span>
+                                <span class="seat dating">13</span>
+                            </div>
+                            <!-- 第二组: 09,08 / 10,07 / 11,06 / 12,05 -->
+                            <div class="hall-group">
+                                <span class="seat dating">09</span>
+                                <span class="seat dating">08</span>
+                                <span class="seat dating">10</span>
+                                <span class="seat dating">07</span>
+                                <span class="seat dating">11</span>
+                                <span class="seat dating">06</span>
+                                <span class="seat dating">12</span>
+                                <span class="seat dating">05</span>
+                            </div>
+                            <!-- 第三组: 01 / 02 / 03 / 04 -->
+                            <div class="hall-group single-col">
+                                <span class="seat dating">01</span>
+                                <span class="seat dating">02</span>
+                                <span class="seat dating">03</span>
+                                <span class="seat dating">04</span>
+                            </div>
+                            <!-- 52,53: 水平排列，在01-04右侧 -->
+                            <div class="seat-row-52-53">
+                                <span class="seat zhuwei2">52</span>
+                                <span class="seat zhuwei2">53</span>
+                            </div>
+                        </div>
+                        <!-- 中间电竞桌区域 + 57-61列 -->
+                        <div class="gaming-area">
+                            <!-- 电竞桌: 46,47 | 33 | 50,51 然后 44,45 | 32 | 48,49 -->
+                            <div class="gaming-grid">
+                                <!-- 左组: 46,47 / 44,45 -->
+                                <div class="gaming-col">
+                                    <div class="gaming-row">
+                                        <span class="seat zhuwei2">46</span>
+                                        <span class="seat zhuwei2">47</span>
+                                    </div>
+                                    <div class="gaming-row">
+                                        <span class="seat zhuwei2">44</span>
+                                        <span class="seat zhuwei2">45</span>
+                                    </div>
+                                </div>
+                                <!-- 中组: 33 / 32 -->
+                                <div class="gaming-col center-col">
+                                    <span class="seat danren">33</span>
+                                    <span class="seat danren">32</span>
+                                </div>
+                                <!-- 右组: 50,51 / 48,49 -->
+                                <div class="gaming-col">
+                                    <div class="gaming-row">
+                                        <span class="seat zhuwei2">50</span>
+                                        <span class="seat zhuwei2">51</span>
+                                    </div>
+                                    <div class="gaming-row">
+                                        <span class="seat zhuwei2">48</span>
+                                        <span class="seat zhuwei2">49</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 57-61列: 在51,49右侧，从上到下61-57 -->
+                            <div class="col-57-61">
+                                <span class="seat zhuwei5">61</span>
+                                <span class="seat zhuwei5">60</span>
+                                <span class="seat zhuwei5">59</span>
+                                <span class="seat zhuwei5">58</span>
+                                <span class="seat zhuwei5">57</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 网咖区 (右上方主区域) -->
-                <div class="layout-zone zone-wangka" data-zone="网咖区">
-                    <div class="seat-grid">
-                        <span class="seat">34</span>
-                        <span class="seat">35</span>
-                        <span class="seat">26</span>
-                        <span class="seat">25</span>
-                        <span class="seat">24</span>
-                        <span class="seat">23</span>
-                        <span class="seat">22</span>
-                        <span class="seat">21</span>
-                        <span class="seat">17</span>
-                        <span class="seat">16</span>
-                        <span class="seat">09</span>
-                        <span class="seat">08</span>
-                        <span class="seat">01</span>
-                        <span class="seat">18</span>
-                        <span class="seat">15</span>
-                        <span class="seat">10</span>
-                        <span class="seat">07</span>
-                        <span class="seat">02</span>
-                        <span class="seat">19</span>
-                        <span class="seat">14</span>
-                        <span class="seat">11</span>
-                        <span class="seat">06</span>
-                        <span class="seat">03</span>
-                        <span class="seat">20</span>
-                        <span class="seat">13</span>
-                        <span class="seat">12</span>
-                        <span class="seat">05</span>
-                        <span class="seat">04</span>
-                    </div>
-                </div>
-
-                <!-- 电竞区 (中间) -->
-                <div class="layout-zone zone-dianjing" data-zone="电竞区">
-                    <div class="seat-grid">
-                        <span class="seat">46</span>
-                        <span class="seat">47</span>
-                        <span class="seat">33</span>
-                        <span class="seat">44</span>
-                        <span class="seat">45</span>
-                        <span class="seat">32</span>
-                        <span class="seat">50</span>
-                        <span class="seat">51</span>
-                        <span class="seat">48</span>
-                        <span class="seat">49</span>
-                    </div>
-                </div>
-
-                <!-- 竞技区 (右侧) -->
-                <div class="layout-zone zone-jingji" data-zone="竞技区">
-                    <div class="seat-grid">
-                        <span class="seat">52</span>
-                        <span class="seat">53</span>
-                        <span class="seat">61</span>
-                        <span class="seat">60</span>
-                        <span class="seat">59</span>
-                        <span class="seat">58</span>
-                        <span class="seat">57</span>
-                    </div>
-                </div>
-
-                <!-- 休闲区 (底部) -->
-                <div class="layout-zone zone-xiuxian" data-zone="休闲区">
-                    <div class="seat-grid">
-                        <span class="seat">27</span>
-                        <span class="seat">28</span>
-                        <span class="seat">29</span>
-                        <span class="seat">30</span>
-                        <span class="seat">31</span>
-                    </div>
+                <!-- 底部一行: 27-31 -->
+                <div class="floor-row bottom-row">
+                    <span class="seat danren">27</span>
+                    <span class="seat danren">28</span>
+                    <span class="seat danren">29</span>
+                    <span class="seat danren">30</span>
+                    <span class="seat danren">31</span>
                 </div>
             </div>
 
             <!-- 图例 -->
             <div class="layout-legend">
                 <div class="legend-item">
-                    <span class="legend-color wangka"></span>
-                    <span>网咖区 (01-26)</span>
+                    <span class="legend-color dating"></span>
+                    <span>大厅 (01-20)</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color baojian"></span>
-                    <span>包间区 (36-56)</span>
+                    <span class="legend-color danren"></span>
+                    <span>单人包 (21-33)</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color dianjing"></span>
-                    <span>电竞区 (32-51)</span>
+                    <span class="legend-color mayi"></span>
+                    <span>蚂蚁双人包 (34-41)</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color jingji"></span>
-                    <span>竞技区 (52-61)</span>
+                    <span class="legend-color zhuwei2"></span>
+                    <span>卓威双人包 (42-53)</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color xiuxian"></span>
-                    <span>休闲区 (27-31)</span>
+                    <span class="legend-color zhuwei3"></span>
+                    <span>卓威三人包 (54-56)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color zhuwei5"></span>
+                    <span>卓威五人包 (57-61)</span>
                 </div>
             </div>
         </div>
@@ -569,6 +605,50 @@
         document.querySelectorAll('.feature-card, .price-card, .gallery-item, .info-item').forEach(el => {
             observer.observe(el);
         });
+
+        // 座位跑马灯效果
+        (function() {
+            const floorPlan = document.querySelector('.floor-plan');
+            const seats = document.querySelectorAll('.floor-plan .seat');
+            if (!seats.length) return;
+
+            let currentIndex = 0;
+            let intervalId = null;
+            let isPaused = false;
+
+            // 开始跑马灯
+            function startMarquee() {
+                if (intervalId) return;
+                intervalId = setInterval(() => {
+                    if (isPaused) return;
+                    // 移除上一个的高亮
+                    seats.forEach(s => s.classList.remove('marquee-active'));
+                    // 高亮当前座位
+                    seats[currentIndex].classList.add('marquee-active');
+                    // 移动到下一个
+                    currentIndex = (currentIndex + 1) % seats.length;
+                }, 150);
+            }
+
+            // 暂停跑马灯
+            function pauseMarquee() {
+                isPaused = true;
+                floorPlan.classList.add('marquee-paused');
+            }
+
+            // 恢复跑马灯
+            function resumeMarquee() {
+                isPaused = false;
+                floorPlan.classList.remove('marquee-paused');
+            }
+
+            // 鼠标移入座位区域暂停
+            floorPlan.addEventListener('mouseenter', pauseMarquee);
+            floorPlan.addEventListener('mouseleave', resumeMarquee);
+
+            // 启动跑马灯
+            startMarquee();
+        })();
     </script>
 </body>
 </html>

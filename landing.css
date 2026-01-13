@@ -779,156 +779,320 @@ section {
     overflow: hidden;
 }
 
-.layout-map {
-    display: grid;
-    grid-template-columns: 80px 1fr 1fr 1fr 100px;
-    grid-template-rows: auto auto auto auto auto;
-    gap: 15px;
-    position: relative;
-}
-
-/* Zone styling */
-.layout-zone {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 15px;
-    position: relative;
-}
-
-.layout-zone::before {
-    content: attr(data-zone);
-    position: absolute;
-    top: -10px;
-    left: 15px;
-    background: var(--bg-card);
-    padding: 0 10px;
-    font-family: var(--font-display);
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--neon-cyan);
-    letter-spacing: 1px;
-}
-
-/* Individual zones */
-.zone-wangka {
-    grid-column: 2 / 5;
-    grid-row: 1 / 3;
-    border-color: rgba(0, 240, 255, 0.3);
-}
-
-.zone-baojian {
-    grid-column: 1;
-    grid-row: 1 / 4;
-    border-color: rgba(255, 0, 170, 0.3);
-}
-
-.zone-dianjing {
-    grid-column: 2 / 4;
-    grid-row: 3;
-    border-color: rgba(139, 92, 246, 0.3);
-}
-
-.zone-jingji {
-    grid-column: 5;
-    grid-row: 1 / 4;
-    border-color: rgba(255, 165, 0, 0.3);
-}
-
-.zone-xiuxian {
-    grid-column: 1 / 6;
-    grid-row: 4;
-    border-color: rgba(0, 255, 136, 0.3);
-}
-
-/* Seat grid inside zones */
-.seat-grid {
+/* Floor plan structure - 严格按照图片布局 */
+.floor-plan {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    margin-top: 8px;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 30px;
 }
 
+.floor-row {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.floor-row.top-row {
+    gap: 18px;
+    margin-bottom: 10px;
+    margin-left: 50px;
+}
+
+.floor-row.bottom-row {
+    margin-top: 15px;
+    gap: 30px;
+}
+
+.seat-block {
+    display: flex;
+    gap: 18px;
+}
+
+.floor-main {
+    display: flex;
+    gap: 25px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.floor-col {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+}
+
+.floor-center {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 大厅区域分组 */
+.hall-area {
+    display: flex;
+    gap: 50px;
+    justify-content: center;
+    margin-left: 40px;
+}
+
+.hall-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+}
+
+.hall-group.single-col {
+    grid-template-columns: 1fr;
+}
+
+/* 游戏区域：电竞桌 + 57-61列并排 */
+.gaming-area {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+/* 57-61列 */
+.col-57-61 {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-left: 20px;
+}
+
+/* 52,53: 水平排列，在01-04右侧 */
+.seat-row-52-53 {
+    display: flex;
+    gap: 5px;
+    margin-top: 124px;
+    align-self: flex-start;
+}
+
+/* 中间电竞区 */
+.gaming-grid {
+    display: flex;
+    gap: 3px;
+    margin-top: 35px;
+}
+
+.gaming-col {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.gaming-col.center-col {
+    margin: 0 12px;
+}
+
+.gaming-row {
+    display: flex;
+    gap: 3px;
+}
+
+/* Base seat styling */
 .seat {
     width: 32px;
-    height: 28px;
-    background: rgba(0, 240, 255, 0.1);
-    border: 1px solid rgba(0, 240, 255, 0.3);
+    height: 26px;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 600;
     color: var(--text-secondary);
     transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-.seat:hover {
-    background: rgba(0, 240, 255, 0.2);
-    border-color: var(--neon-cyan);
+.seat:hover,
+.seat.marquee-active {
+    transform: scale(1.25);
     color: var(--text-primary);
-    transform: scale(1.1);
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    z-index: 10;
+    animation: pulse-glow 0.5s ease-in-out;
 }
 
-/* Different zone seat colors */
-.zone-baojian .seat {
-    background: rgba(255, 0, 170, 0.1);
-    border-color: rgba(255, 0, 170, 0.3);
+@keyframes pulse-glow {
+    0%, 100% { transform: scale(1.25); }
+    50% { transform: scale(1.35); }
 }
 
-.zone-baojian .seat:hover {
+/* 跑马灯暂停状态 */
+.floor-plan.marquee-paused .seat.marquee-active {
+    transform: scale(1);
+    color: var(--text-secondary);
+    animation: none;
+}
+
+.seat.empty {
+    visibility: hidden;
+}
+
+/* 大厅 (1-20) - 青色 */
+.seat.dating {
+    background: rgba(0, 240, 255, 0.12);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+}
+.seat.dating:hover,
+.seat.dating.marquee-active {
+    background: rgba(0, 240, 255, 0.4);
+    border-color: rgba(0, 240, 255, 1);
+    box-shadow:
+        0 0 10px rgba(0, 240, 255, 0.8),
+        0 0 20px rgba(0, 240, 255, 0.6),
+        0 0 40px rgba(0, 240, 255, 0.4),
+        0 0 60px rgba(0, 240, 255, 0.2),
+        inset 0 0 10px rgba(0, 240, 255, 0.3);
+}
+.floor-plan.marquee-paused .seat.dating.marquee-active {
+    background: rgba(0, 240, 255, 0.12);
+    border-color: rgba(0, 240, 255, 0.4);
+    box-shadow: none;
+}
+.legend-color.dating {
+    background: rgba(0, 240, 255, 0.2);
+    border: 1px solid rgba(0, 240, 255, 0.5);
+}
+
+/* 单人包 (21-33) - 粉色 */
+.seat.danren {
+    background: rgba(255, 0, 170, 0.12);
+    border: 1px solid rgba(255, 0, 170, 0.4);
+}
+.seat.danren:hover,
+.seat.danren.marquee-active {
+    background: rgba(255, 0, 170, 0.4);
+    border-color: rgba(255, 0, 170, 1);
+    box-shadow:
+        0 0 10px rgba(255, 0, 170, 0.8),
+        0 0 20px rgba(255, 0, 170, 0.6),
+        0 0 40px rgba(255, 0, 170, 0.4),
+        0 0 60px rgba(255, 0, 170, 0.2),
+        inset 0 0 10px rgba(255, 0, 170, 0.3);
+}
+.floor-plan.marquee-paused .seat.danren.marquee-active {
+    background: rgba(255, 0, 170, 0.12);
+    border-color: rgba(255, 0, 170, 0.4);
+    box-shadow: none;
+}
+.legend-color.danren {
     background: rgba(255, 0, 170, 0.2);
-    border-color: var(--neon-magenta);
-    box-shadow: 0 0 10px rgba(255, 0, 170, 0.3);
+    border: 1px solid rgba(255, 0, 170, 0.5);
 }
 
-.zone-dianjing .seat {
-    background: rgba(139, 92, 246, 0.1);
-    border-color: rgba(139, 92, 246, 0.3);
+/* 蚂蚁双人包 (34-41) - 紫色 */
+.seat.mayi {
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.4);
 }
-
-.zone-dianjing .seat:hover {
+.seat.mayi:hover,
+.seat.mayi.marquee-active {
+    background: rgba(139, 92, 246, 0.4);
+    border-color: rgba(139, 92, 246, 1);
+    box-shadow:
+        0 0 10px rgba(139, 92, 246, 0.8),
+        0 0 20px rgba(139, 92, 246, 0.6),
+        0 0 40px rgba(139, 92, 246, 0.4),
+        0 0 60px rgba(139, 92, 246, 0.2),
+        inset 0 0 10px rgba(139, 92, 246, 0.3);
+}
+.floor-plan.marquee-paused .seat.mayi.marquee-active {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.4);
+    box-shadow: none;
+}
+.legend-color.mayi {
     background: rgba(139, 92, 246, 0.2);
-    border-color: var(--neon-purple);
-    box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+    border: 1px solid rgba(139, 92, 246, 0.5);
 }
 
-.zone-jingji .seat {
-    background: rgba(255, 165, 0, 0.1);
-    border-color: rgba(255, 165, 0, 0.3);
+/* 卓威双人包 (42-53) - 橙色 */
+.seat.zhuwei2 {
+    background: rgba(255, 165, 0, 0.12);
+    border: 1px solid rgba(255, 165, 0, 0.4);
 }
-
-.zone-jingji .seat:hover {
+.seat.zhuwei2:hover,
+.seat.zhuwei2.marquee-active {
+    background: rgba(255, 165, 0, 0.4);
+    border-color: rgba(255, 165, 0, 1);
+    box-shadow:
+        0 0 10px rgba(255, 165, 0, 0.8),
+        0 0 20px rgba(255, 165, 0, 0.6),
+        0 0 40px rgba(255, 165, 0, 0.4),
+        0 0 60px rgba(255, 165, 0, 0.2),
+        inset 0 0 10px rgba(255, 165, 0, 0.3);
+}
+.floor-plan.marquee-paused .seat.zhuwei2.marquee-active {
+    background: rgba(255, 165, 0, 0.12);
+    border-color: rgba(255, 165, 0, 0.4);
+    box-shadow: none;
+}
+.legend-color.zhuwei2 {
     background: rgba(255, 165, 0, 0.2);
-    border-color: #ffa500;
-    box-shadow: 0 0 10px rgba(255, 165, 0, 0.3);
+    border: 1px solid rgba(255, 165, 0, 0.5);
 }
 
-.zone-xiuxian .seat {
-    background: rgba(0, 255, 136, 0.1);
-    border-color: rgba(0, 255, 136, 0.3);
+/* 卓威三人包 (54-56) - 绿色 */
+.seat.zhuwei3 {
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.4);
 }
-
-.zone-xiuxian .seat:hover {
+.seat.zhuwei3:hover,
+.seat.zhuwei3.marquee-active {
+    background: rgba(0, 255, 136, 0.4);
+    border-color: rgba(0, 255, 136, 1);
+    box-shadow:
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 0 20px rgba(0, 255, 136, 0.6),
+        0 0 40px rgba(0, 255, 136, 0.4),
+        0 0 60px rgba(0, 255, 136, 0.2),
+        inset 0 0 10px rgba(0, 255, 136, 0.3);
+}
+.floor-plan.marquee-paused .seat.zhuwei3.marquee-active {
+    background: rgba(0, 255, 136, 0.12);
+    border-color: rgba(0, 255, 136, 0.4);
+    box-shadow: none;
+}
+.legend-color.zhuwei3 {
     background: rgba(0, 255, 136, 0.2);
-    border-color: #00ff88;
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    border: 1px solid rgba(0, 255, 136, 0.5);
 }
 
-.seat.vip {
-    background: linear-gradient(135deg, rgba(255, 0, 170, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
-    border-color: rgba(255, 0, 170, 0.5);
+/* 卓威五人包 (57-61) - 金色 */
+.seat.zhuwei5 {
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+}
+.seat.zhuwei5:hover,
+.seat.zhuwei5.marquee-active {
+    background: rgba(255, 215, 0, 0.4);
+    border-color: rgba(255, 215, 0, 1);
+    box-shadow:
+        0 0 10px rgba(255, 215, 0, 0.8),
+        0 0 20px rgba(255, 215, 0, 0.6),
+        0 0 40px rgba(255, 215, 0, 0.4),
+        0 0 60px rgba(255, 215, 0, 0.2),
+        inset 0 0 10px rgba(255, 215, 0, 0.3);
+}
+.floor-plan.marquee-paused .seat.zhuwei5.marquee-active {
+    background: rgba(255, 215, 0, 0.12);
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: none;
+}
+.legend-color.zhuwei5 {
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid rgba(255, 215, 0, 0.5);
 }
 
 /* Layout legend */
 .layout-legend {
     display: flex;
     justify-content: center;
-    gap: 30px;
+    gap: 20px;
     margin-top: 30px;
     padding-top: 25px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -938,41 +1102,15 @@ section {
 .legend-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
+    gap: 6px;
+    font-size: 0.75rem;
     color: var(--text-secondary);
 }
 
 .legend-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid;
-}
-
-.legend-color.wangka {
-    background: rgba(0, 240, 255, 0.15);
-    border-color: rgba(0, 240, 255, 0.4);
-}
-
-.legend-color.baojian {
-    background: rgba(255, 0, 170, 0.15);
-    border-color: rgba(255, 0, 170, 0.4);
-}
-
-.legend-color.dianjing {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.4);
-}
-
-.legend-color.jingji {
-    background: rgba(255, 165, 0, 0.15);
-    border-color: rgba(255, 165, 0, 0.4);
-}
-
-.legend-color.xiuxian {
-    background: rgba(0, 255, 136, 0.15);
-    border-color: rgba(0, 255, 136, 0.4);
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
 }
 
 /* Entrance marker */
@@ -1011,40 +1149,48 @@ section {
 /* Responsive layout map */
 @media (max-width: 768px) {
     .layout-container {
-        padding: 20px;
+        padding: 20px 10px;
         margin: 0 -10px;
         border-radius: 0;
         border-left: none;
         border-right: none;
     }
 
-    .layout-map {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto;
-        gap: 20px;
-    }
-
-    .zone-wangka,
-    .zone-baojian,
-    .zone-dianjing,
-    .zone-jingji,
-    .zone-xiuxian {
-        grid-column: 1;
-        grid-row: auto;
+    .floor-plan {
+        transform: scale(0.85);
+        transform-origin: top center;
     }
 
     .seat {
-        width: 28px;
-        height: 24px;
-        font-size: 0.6rem;
+        width: 26px;
+        height: 22px;
+        font-size: 0.5rem;
     }
 
     .layout-legend {
-        gap: 15px;
+        gap: 8px;
+        margin-top: 10px;
     }
 
     .legend-item {
-        font-size: 0.75rem;
+        font-size: 0.6rem;
+    }
+
+    .legend-color {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .floor-plan {
+        transform: scale(0.7);
+    }
+
+    .layout-legend {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
     }
 }
 
