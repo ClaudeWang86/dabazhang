@@ -3057,8 +3057,8 @@ function renderRechargeAnalysis() {
 
     // 渲染图表
     renderRechargeDailyChart();
-    renderRechargeChannelChart();
     renderRechargeTypeChart();
+    renderRechargeChannelChart();
     renderRechargeAmountDistChart();
     renderRechargeHourlyChart();
     renderRechargeTopUsersChart();
@@ -3094,7 +3094,7 @@ function renderRechargeDailyChart() {
     charts.rechargeDaily.setOption(option);
 }
 
-// 支付渠道分布图
+// 订单类型分布图
 function renderRechargeChannelChart() {
     const chartDom = document.getElementById('rechargeChannelChart');
     if (!chartDom) return;

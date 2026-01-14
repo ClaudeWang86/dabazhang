@@ -702,6 +702,18 @@ function transformRechargeRecords(records) {
     if (records.length > 0) {
         console.log('原始充值记录字段:', Object.keys(records[0]));
         console.log('原始充值记录示例:', JSON.stringify(records[0], null, 2));
+
+        // 调试：统计 orderway 和 ordertype 的所有值
+        const orderwayValues = {};
+        const ordertypeValues = {};
+        records.forEach(r => {
+            const way = r.orderway ?? 'undefined';
+            const type = r.ordertype ?? 'undefined';
+            orderwayValues[way] = (orderwayValues[way] || 0) + 1;
+            ordertypeValues[type] = (ordertypeValues[type] || 0) + 1;
+        });
+        console.log('API 返回的 orderway 值统计:', orderwayValues);
+        console.log('API 返回的 ordertype 值统计:', ordertypeValues);
     }
 
     const transformed = records
@@ -717,8 +729,8 @@ function transformRechargeRecords(records) {
                 order_fee: (r.orderfee || r.orderFee || r.ordermoney || r.orderMoney || r.money || 0) / 100,
                 pay_fee: (r.payfee || r.payFee || r.paymoney || r.payMoney || 0) / 100,
                 gift_fee: (r.giftfee || r.giftFee || r.giftmoney || r.giftMoney || r.gift || 0) / 100,
-                pay_type: getPayType(r.paytype || r.payType || r.payway || r.payWay),
-                pay_channel: getPayChannel(r.paychannel || r.payChannel),
+                pay_type: getPayType(r.orderway),
+                pay_channel: getOrderType(r.ordertype),
                 order_status: r.orderstatus ?? r.orderStatus ?? r.status ?? 1,
                 create_time: timestampToISO(createTime),
                 pay_time: timestampToISO(r.paytime || r.payTime || r.successtime),
@@ -738,30 +750,34 @@ function transformRechargeRecords(records) {
 }
 
 /**
- * 根据支付类型代码获取名称
+ * 根据 orderway 获取支付方式名称
  */
-function getPayType(paytype) {
+function getPayType(orderway) {
     const types = {
         1: '微信',
         2: '支付宝',
         3: '现金',
-        4: '其他'
+        4: '银行卡',
+        5: '余额',
+        6: '积分',
+        7: '组合支付'
     };
-    return types[paytype] || '其他';
+    return types[orderway] || `未知(${orderway})`;
 }
 
 /**
- * 根据支付渠道代码获取名称
+ * 根据 ordertype 获取订单类型名称
  */
-function getPayChannel(paychannel) {
-    const channels = {
-        1: '扫码支付',
-        2: 'APP支付',
-        3: '小程序',
-        4: '公众号',
-        5: '现金'
+function getOrderType(ordertype) {
+    const types = {
+        1: '普通充值',
+        2: '会员充值',
+        3: '活动充值',
+        4: '扫码充值',
+        5: '后台充值',
+        6: '赠送'
     };
-    return channels[paychannel] || '其他';
+    return types[ordertype] || `未知(${ordertype})`;
 }
 
 /**

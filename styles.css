@@ -734,6 +734,8 @@ header h1 {
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    flex: 1;
+    min-width: 0;
 }
 
 .chart-container h3 {
