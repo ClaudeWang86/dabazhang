@@ -2979,14 +2979,33 @@ function processRechargeData() {
         return;
     }
 
-    // 基础统计（使用 Math.round 避免浮点数精度问题）
-    // 实际金额 = 订单金额 - 退款金额
-    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => {
+    // 退款类型订单的 pay_channel 值
+    const REFUND_PAY_CHANNELS = ['8', '9', '30', 8, 9, 30];
+
+    // 判断是否为退款订单
+    const isRefundOrder = (r) => REFUND_PAY_CHANNELS.includes(r.pay_channel);
+
+    // 计算订单的实际金额（退款订单为负数）
+    const getNetAmount = (r) => {
         const orderFee = parseFloat(r.order_fee) || 0;
         const refundFee = parseFloat(r.refund_fee) || 0;
-        return sum + orderFee - refundFee;
+        if (isRefundOrder(r)) {
+            // 退款订单：order_fee 是退款金额，应该减去
+            return -orderFee;
+        }
+        // 普通订单：订单金额 - 部分退款
+        return orderFee - refundFee;
+    };
+
+    // 基础统计（使用 Math.round 避免浮点数精度问题）
+    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
+    // 退款总额（包括退款订单的 order_fee 和普通订单的 refund_fee）
+    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => {
+        if (isRefundOrder(r)) {
+            return sum + (parseFloat(r.order_fee) || 0);
+        }
+        return sum + (parseFloat(r.refund_fee) || 0);
     }, 0) * 100) / 100;
-    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
@@ -3010,9 +3029,7 @@ function processRechargeData() {
             byChannel[channel] = { count: 0, amount: 0 };
         }
         byChannel[channel].count++;
-        // 实际金额 = 订单金额 - 退款金额
-        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
-        byChannel[channel].amount += netAmount;
+        byChannel[channel].amount += getNetAmount(r);
     });
     // 四舍五入到分
     Object.values(byChannel).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3026,9 +3043,7 @@ function processRechargeData() {
             byType[type] = { count: 0, amount: 0 };
         }
         byType[type].count++;
-        // 实际金额 = 订单金额 - 退款金额
-        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
-        byType[type].amount += netAmount;
+        byType[type].amount += getNetAmount(r);
     });
     // 四舍五入到分
     Object.values(byType).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3042,11 +3057,14 @@ function processRechargeData() {
                 byDate[date] = { count: 0, amount: 0, gift: 0, refund: 0 };
             }
             byDate[date].count++;
-            // 实际金额 = 订单金额 - 退款金额
-            const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
-            byDate[date].amount += netAmount;
+            byDate[date].amount += getNetAmount(r);
             byDate[date].gift += parseFloat(r.gift_fee) || 0;
-            byDate[date].refund += parseFloat(r.refund_fee) || 0;
+            // 退款金额：退款订单的 order_fee 或普通订单的 refund_fee
+            if (isRefundOrder(r)) {
+                byDate[date].refund += parseFloat(r.order_fee) || 0;
+            } else {
+                byDate[date].refund += parseFloat(r.refund_fee) || 0;
+            }
         }
     });
     // 四舍五入到分
@@ -3062,15 +3080,13 @@ function processRechargeData() {
         if (r.create_time) {
             const hour = new Date(r.create_time).getHours();
             byHour[hour].count++;
-            // 实际金额 = 订单金额 - 退款金额
-            const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
-            byHour[hour].amount += netAmount;
+            byHour[hour].amount += getNetAmount(r);
         }
     });
     // 四舍五入到分
     byHour.forEach(v => v.amount = Math.round(v.amount * 100) / 100);
 
-    // 按金额区间统计
+    // 按金额区间统计（排除退款订单）
     const amountRanges = {
         '0-50': { count: 0, amount: 0 },
         '50-100': { count: 0, amount: 0 },
@@ -3080,6 +3096,8 @@ function processRechargeData() {
         '1000+': { count: 0, amount: 0 }
     };
     rechargeRawData.forEach(r => {
+        // 退款订单不计入金额区间统计
+        if (isRefundOrder(r)) return;
         const orderFee = parseFloat(r.order_fee) || 0;
         // 按订单金额分类区间
         let range;
@@ -3090,9 +3108,7 @@ function processRechargeData() {
         else if (orderFee < 1000) range = '500-1000';
         else range = '1000+';
         amountRanges[range].count++;
-        // 实际金额 = 订单金额 - 退款金额
-        const netAmount = orderFee - (parseFloat(r.refund_fee) || 0);
-        amountRanges[range].amount += netAmount;
+        amountRanges[range].amount += getNetAmount(r);
     });
     // 四舍五入到分
     Object.values(amountRanges).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3105,9 +3121,7 @@ function processRechargeData() {
             userStats[account] = { name: r.member_name || account, count: 0, amount: 0 };
         }
         userStats[account].count++;
-        // 实际金额 = 订单金额 - 退款金额
-        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
-        userStats[account].amount += netAmount;
+        userStats[account].amount += getNetAmount(r);
     });
     // 四舍五入到分
     Object.values(userStats).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
