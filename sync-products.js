@@ -961,8 +961,9 @@ async function fetchOrdersPage(token, startTime, endTime, category, page = 1, pa
     }
 
     // 构建 URL 参数
+    // timeType=1 表示按支付时间筛选（与 yisbar 后台一致）
     const params = new URLSearchParams();
-    params.append('timeType', '0');
+    params.append('timeType', '1');
     params.append('gidList[0]', API_CONFIG.gid);
     params.append('pageIndex', page);
     params.append('pageSize', pageSize);

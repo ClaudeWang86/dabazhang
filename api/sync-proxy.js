@@ -184,8 +184,9 @@ export default async function handler(req, res) {
                 return res.status(400).json({ error: `Invalid category: ${category}` });
             }
 
+            // timeType=1 表示按支付时间筛选（与 yisbar 后台一致）
             const params = new URLSearchParams({
-                'timeType': '0',
+                'timeType': '1',
                 'gidList[0]': API_CONFIG.gid,
                 'pageIndex': page,
                 'pageSize': pageSize,
