@@ -2857,9 +2857,10 @@ async function loadRechargeAvailableDates() {
 }
 
 // 按日期范围加载充值数据
+// 注意：使用 pay_time（支付时间）筛选，与 API 同步时的 timeType=1 保持一致
 async function loadRechargeDataByDateRange(startDate, endDate) {
     try {
-        console.log(`加载充值数据: ${startDate} 至 ${endDate}`);
+        console.log(`加载充值数据: ${startDate} 至 ${endDate} (按支付时间)`);
 
         // 分页获取所有数据
         const PAGE_SIZE = 1000;
@@ -2871,12 +2872,13 @@ async function loadRechargeDataByDateRange(startDate, endDate) {
             const from = page * PAGE_SIZE;
             const to = from + PAGE_SIZE - 1;
 
+            // 使用 pay_time 筛选（与 API 同步 timeType=1 一致）
             const { data, error } = await db
                 .from('recharges')
                 .select('*')
-                .gte('create_time', startDate + 'T00:00:00')
-                .lte('create_time', endDate + 'T23:59:59')
-                .order('create_time', { ascending: false })
+                .gte('pay_time', startDate + 'T00:00:00')
+                .lte('pay_time', endDate + 'T23:59:59')
+                .order('pay_time', { ascending: false })
                 .range(from, to);
 
             if (error) throw error;
@@ -2913,7 +2915,7 @@ async function loadAllRechargeData() {
             const { data, error } = await db
                 .from('recharges')
                 .select('*')
-                .order('create_time', { ascending: false })
+                .order('pay_time', { ascending: false })
                 .range(from, to);
 
             if (error) throw error;
