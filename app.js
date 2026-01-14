@@ -2980,7 +2980,13 @@ function processRechargeData() {
     }
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
-    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.order_fee) || 0), 0) * 100) / 100;
+    // 实际金额 = 订单金额 - 退款金额
+    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => {
+        const orderFee = parseFloat(r.order_fee) || 0;
+        const refundFee = parseFloat(r.refund_fee) || 0;
+        return sum + orderFee - refundFee;
+    }, 0) * 100) / 100;
+    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
@@ -3004,7 +3010,9 @@ function processRechargeData() {
             byChannel[channel] = { count: 0, amount: 0 };
         }
         byChannel[channel].count++;
-        byChannel[channel].amount += parseFloat(r.order_fee) || 0;
+        // 实际金额 = 订单金额 - 退款金额
+        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
+        byChannel[channel].amount += netAmount;
     });
     // 四舍五入到分
     Object.values(byChannel).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3018,7 +3026,9 @@ function processRechargeData() {
             byType[type] = { count: 0, amount: 0 };
         }
         byType[type].count++;
-        byType[type].amount += parseFloat(r.order_fee) || 0;
+        // 实际金额 = 订单金额 - 退款金额
+        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
+        byType[type].amount += netAmount;
     });
     // 四舍五入到分
     Object.values(byType).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3029,17 +3039,21 @@ function processRechargeData() {
         if (r.create_time) {
             const date = r.create_time.split('T')[0];
             if (!byDate[date]) {
-                byDate[date] = { count: 0, amount: 0, gift: 0 };
+                byDate[date] = { count: 0, amount: 0, gift: 0, refund: 0 };
             }
             byDate[date].count++;
-            byDate[date].amount += parseFloat(r.order_fee) || 0;
+            // 实际金额 = 订单金额 - 退款金额
+            const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
+            byDate[date].amount += netAmount;
             byDate[date].gift += parseFloat(r.gift_fee) || 0;
+            byDate[date].refund += parseFloat(r.refund_fee) || 0;
         }
     });
     // 四舍五入到分
     Object.values(byDate).forEach(v => {
         v.amount = Math.round(v.amount * 100) / 100;
         v.gift = Math.round(v.gift * 100) / 100;
+        v.refund = Math.round(v.refund * 100) / 100;
     });
 
     // 按小时统计
@@ -3048,7 +3062,9 @@ function processRechargeData() {
         if (r.create_time) {
             const hour = new Date(r.create_time).getHours();
             byHour[hour].count++;
-            byHour[hour].amount += parseFloat(r.order_fee) || 0;
+            // 实际金额 = 订单金额 - 退款金额
+            const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
+            byHour[hour].amount += netAmount;
         }
     });
     // 四舍五入到分
@@ -3064,16 +3080,19 @@ function processRechargeData() {
         '1000+': { count: 0, amount: 0 }
     };
     rechargeRawData.forEach(r => {
-        const amount = parseFloat(r.order_fee) || 0;
+        const orderFee = parseFloat(r.order_fee) || 0;
+        // 按订单金额分类区间
         let range;
-        if (amount < 50) range = '0-50';
-        else if (amount < 100) range = '50-100';
-        else if (amount < 200) range = '100-200';
-        else if (amount < 500) range = '200-500';
-        else if (amount < 1000) range = '500-1000';
+        if (orderFee < 50) range = '0-50';
+        else if (orderFee < 100) range = '50-100';
+        else if (orderFee < 200) range = '100-200';
+        else if (orderFee < 500) range = '200-500';
+        else if (orderFee < 1000) range = '500-1000';
         else range = '1000+';
         amountRanges[range].count++;
-        amountRanges[range].amount += amount;
+        // 实际金额 = 订单金额 - 退款金额
+        const netAmount = orderFee - (parseFloat(r.refund_fee) || 0);
+        amountRanges[range].amount += netAmount;
     });
     // 四舍五入到分
     Object.values(amountRanges).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3086,7 +3105,9 @@ function processRechargeData() {
             userStats[account] = { name: r.member_name || account, count: 0, amount: 0 };
         }
         userStats[account].count++;
-        userStats[account].amount += parseFloat(r.order_fee) || 0;
+        // 实际金额 = 订单金额 - 退款金额
+        const netAmount = (parseFloat(r.order_fee) || 0) - (parseFloat(r.refund_fee) || 0);
+        userStats[account].amount += netAmount;
     });
     // 四舍五入到分
     Object.values(userStats).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
@@ -3096,6 +3117,7 @@ function processRechargeData() {
 
     rechargeProcessedData = {
         totalAmount,
+        totalRefund,
         totalGift,
         count: rechargeRawData.length,
         uniqueUsers,

@@ -753,6 +753,7 @@ function transformRechargeRecords(records) {
                 order_fee: Number(((r.orderfee || r.orderFee || 0) / 100).toFixed(2)),
                 pay_fee: Number(((r.payfee || r.payFee || r.orderfee || 0) / 100).toFixed(2)),
                 gift_fee: Number(((r.adwardfee || r.awardFee || r.giftfee || 0) / 100).toFixed(2)),
+                refund_fee: Number(((r.refundFee || r.refundfee || 0) / 100).toFixed(2)),  // 退款金额
                 pay_type: r.orderway ?? null,           // 存原始数字：1=支付宝, 2=微信, 3=现金, 4=线下, 5=卡券兑换
                 pay_channel: r.ordertype ?? null,       // 存原始数字：1=账户充值, 3=卡券活动, 4=购买商品...
                 order_subtype: r.ordersubway ?? null,   // 存原始数字：卡券子类型（抖音/美团）
