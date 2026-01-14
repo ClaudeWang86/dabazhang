@@ -2981,11 +2981,16 @@ function processRechargeData() {
         return;
     }
 
-    // 计算订单的实际金额：order_fee + deposit（押金也计入营收）
+    // 计算订单的实际金额
+    // 营收订单：order_fee + deposit（押金也计入营收）
+    // 退款订单：只用 order_fee（deposit 是负数，不应相加）
     const getNetAmount = (r) => {
         const orderFee = parseFloat(r.order_fee) || 0;
+        if (r.category === 'refund') {
+            return orderFee;  // 退款订单只用 order_fee
+        }
         const deposit = parseFloat(r.deposit) || 0;
-        return orderFee + deposit;
+        return orderFee + deposit;  // 营收订单加上押金
     };
 
     // 根据 category 字段区分营收订单和退货订单
