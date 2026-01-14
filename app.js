@@ -3148,7 +3148,9 @@ function renderRechargeAnalysis() {
         return;
     }
 
-    // 更新统计卡片
+    // 更新统计卡片（显示营收、退货、净收入）
+    document.getElementById('rechargeRevenueTotal').textContent = `¥${(rechargeProcessedData.revenueTotal || 0).toFixed(2)}`;
+    document.getElementById('rechargeRefundTotal').textContent = `¥${(rechargeProcessedData.refundTotal || 0).toFixed(2)}`;
     document.getElementById('rechargeTotalAmount').textContent = `¥${rechargeProcessedData.totalAmount.toFixed(2)}`;
     document.getElementById('rechargeTotalGift').textContent = `¥${rechargeProcessedData.totalGift.toFixed(2)}`;
     document.getElementById('rechargeCount').textContent = rechargeProcessedData.count;
