@@ -726,9 +726,9 @@ function transformRechargeRecords(records) {
                 order_id: String(orderId),
                 account: String(r.account || r.memberaccount || r.memberAccount || ''),
                 member_name: r.membername || r.memberName || r.nickname || null,
-                order_fee: (r.orderfee || r.orderFee || r.ordermoney || r.orderMoney || r.money || 0) / 100,
-                pay_fee: (r.payfee || r.payFee || r.paymoney || r.payMoney || 0) / 100,
-                gift_fee: (r.giftfee || r.giftFee || r.giftmoney || r.giftMoney || r.gift || 0) / 100,
+                order_fee: (r.orderfee || r.orderFee || 0) / 100,
+                pay_fee: (r.payfee || r.payFee || r.orderfee || 0) / 100,
+                gift_fee: (r.adwardfee || r.awardFee || r.giftfee || 0) / 100,
                 pay_type: getPayType(r.orderway),
                 pay_channel: getOrderType(r.ordertype),
                 order_status: r.orderstatus ?? r.orderStatus ?? r.status ?? 1,
@@ -751,31 +751,35 @@ function transformRechargeRecords(records) {
 
 /**
  * 根据 orderway 获取支付方式名称
+ * 映射来自 Excel 对比: 订单218567 orderway=2 -> 微信支付
  */
 function getPayType(orderway) {
     const types = {
-        1: '微信',
-        2: '支付宝',
-        3: '现金',
-        4: '银行卡',
-        5: '余额',
-        6: '积分',
-        7: '组合支付'
+        1: '支付宝',
+        2: '微信支付',
+        3: '现金支付',
+        4: '线下支付',
+        5: '卡券兑换',
+        6: '员工调整'
     };
     return types[orderway] || `未知(${orderway})`;
 }
 
 /**
  * 根据 ordertype 获取订单类型名称
+ * 映射来自 Excel 对比: 订单218567 ordertype=4 -> 购买商品
  */
 function getOrderType(ordertype) {
     const types = {
-        1: '普通充值',
-        2: '会员充值',
-        3: '活动充值',
-        4: '扫码充值',
-        5: '后台充值',
-        6: '赠送'
+        1: '账户充值',
+        2: '第三方余额导入',
+        3: '卡券活动购买',
+        4: '购买商品',
+        5: '临卡押金充值',
+        6: '押金找零',
+        7: '变更网费余额',
+        8: '账户充值退款',
+        9: '商品退款'
     };
     return types[ordertype] || `未知(${ordertype})`;
 }
