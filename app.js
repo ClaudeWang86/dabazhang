@@ -2979,9 +2979,9 @@ function processRechargeData() {
         return;
     }
 
-    // 基础统计
-    const totalAmount = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.order_fee) || 0), 0);
-    const totalGift = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0);
+    // 基础统计（使用 Math.round 避免浮点数精度问题）
+    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.order_fee) || 0), 0) * 100) / 100;
+    const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
     // 调试：检查数据中的 pay_channel 和 order_subtype 值
@@ -3006,6 +3006,8 @@ function processRechargeData() {
         byChannel[channel].count++;
         byChannel[channel].amount += parseFloat(r.order_fee) || 0;
     });
+    // 四舍五入到分
+    Object.values(byChannel).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
     console.log('处理后的 byChannel:', byChannel);
 
     // 按支付方式统计
@@ -3018,6 +3020,8 @@ function processRechargeData() {
         byType[type].count++;
         byType[type].amount += parseFloat(r.order_fee) || 0;
     });
+    // 四舍五入到分
+    Object.values(byType).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
 
     // 按日期统计
     const byDate = {};
@@ -3032,6 +3036,11 @@ function processRechargeData() {
             byDate[date].gift += parseFloat(r.gift_fee) || 0;
         }
     });
+    // 四舍五入到分
+    Object.values(byDate).forEach(v => {
+        v.amount = Math.round(v.amount * 100) / 100;
+        v.gift = Math.round(v.gift * 100) / 100;
+    });
 
     // 按小时统计
     const byHour = Array(24).fill(0).map(() => ({ count: 0, amount: 0 }));
@@ -3042,6 +3051,8 @@ function processRechargeData() {
             byHour[hour].amount += parseFloat(r.order_fee) || 0;
         }
     });
+    // 四舍五入到分
+    byHour.forEach(v => v.amount = Math.round(v.amount * 100) / 100);
 
     // 按金额区间统计
     const amountRanges = {
@@ -3064,6 +3075,8 @@ function processRechargeData() {
         amountRanges[range].count++;
         amountRanges[range].amount += amount;
     });
+    // 四舍五入到分
+    Object.values(amountRanges).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
 
     // 用户充值排行
     const userStats = {};
@@ -3075,6 +3088,8 @@ function processRechargeData() {
         userStats[account].count++;
         userStats[account].amount += parseFloat(r.order_fee) || 0;
     });
+    // 四舍五入到分
+    Object.values(userStats).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
     const topUsers = Object.values(userStats)
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 10);

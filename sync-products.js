@@ -738,9 +738,9 @@ function transformRechargeRecords(records) {
                 order_id: String(orderId),
                 account: String(r.account || r.memberaccount || r.memberAccount || ''),
                 member_name: r.membername || r.memberName || r.nickname || null,
-                order_fee: (r.orderfee || r.orderFee || 0) / 100,
-                pay_fee: (r.payfee || r.payFee || r.orderfee || 0) / 100,
-                gift_fee: (r.adwardfee || r.awardFee || r.giftfee || 0) / 100,
+                order_fee: Number(((r.orderfee || r.orderFee || 0) / 100).toFixed(2)),
+                pay_fee: Number(((r.payfee || r.payFee || r.orderfee || 0) / 100).toFixed(2)),
+                gift_fee: Number(((r.adwardfee || r.awardFee || r.giftfee || 0) / 100).toFixed(2)),
                 pay_type: r.orderway ?? null,           // 存原始数字：1=支付宝, 2=微信, 3=现金, 4=线下, 5=卡券兑换
                 pay_channel: r.ordertype ?? null,       // 存原始数字：1=账户充值, 3=卡券活动, 4=购买商品...
                 order_subtype: r.ordersubway ?? null,   // 存原始数字：卡券子类型（抖音/美团）
