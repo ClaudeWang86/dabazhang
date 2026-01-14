@@ -707,35 +707,16 @@ async function fetchAllRecharges(token, startTime, endTime) {
  * 转换 API 记录为 recharges 表格式
  */
 function transformRechargeRecords(records) {
-    // 调试：打印第一条原始记录的所有字段
-    if (records.length > 0) {
-        console.log('原始充值记录字段:', Object.keys(records[0]));
-        console.log('原始充值记录示例:', JSON.stringify(records[0], null, 2));
-
-        // 调试：统计 orderway, ordertype, ordersubway 的所有值
-        const orderwayValues = {};
-        const ordertypeValues = {};
-        const ordersubwayValues = {};
-        records.forEach(r => {
-            const way = r.orderway ?? 'undefined';
-            const type = r.ordertype ?? 'undefined';
-            const subway = r.ordersubway ?? 'null';
-            orderwayValues[way] = (orderwayValues[way] || 0) + 1;
-            ordertypeValues[type] = (ordertypeValues[type] || 0) + 1;
-            ordersubwayValues[subway] = (ordersubwayValues[subway] || 0) + 1;
-        });
-        console.log('API 返回的 orderway 值统计:', orderwayValues);
-        console.log('API 返回的 ordertype 值统计:', ordertypeValues);
-        console.log('API 返回的 ordersubway 值统计:', ordersubwayValues);
-
-        // 单独统计 ordertype=3 (卡券活动购买) 的 ordersubway
-        const couponSubways = {};
-        records.filter(r => r.ordertype === 3).forEach(r => {
-            const subway = r.ordersubway ?? 'null';
-            couponSubways[subway] = (couponSubways[subway] || 0) + 1;
-        });
-        console.log('卡券活动购买(ordertype=3)的 ordersubway 值统计:', couponSubways);
-    }
+    // 调试：打印指定订单的完整 API 返回
+    const debugOrderIds = ['188917', '188922', '188473', 188917, 188922, 188473];
+    records.forEach(r => {
+        const orderId = r.orderid || r.orderId;
+        if (debugOrderIds.includes(orderId) || debugOrderIds.includes(String(orderId))) {
+            console.log(`\n========== 订单 ${orderId} 完整 API 返回 ==========`);
+            console.log(JSON.stringify(r, null, 2));
+            console.log('='.repeat(50));
+        }
+    });
 
     const transformed = records
         .map(r => {
