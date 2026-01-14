@@ -2979,22 +2979,29 @@ function processRechargeData() {
         return;
     }
 
-    // 计算订单的实际金额：直接使用 order_fee（API 已按 yisbar 后台过滤）
+    // 计算订单的实际金额：直接使用 order_fee
     const getNetAmount = (r) => {
         return parseFloat(r.order_fee) || 0;
     };
 
-    // 所有记录都参与统计（API 已过滤）
-    const revenueRecords = rechargeRawData;
+    // 根据 category 字段区分营收订单和退货订单
+    const revenueRecords = rechargeRawData.filter(r => r.category === 'revenue');
+    const refundRecords = rechargeRawData.filter(r => r.category === 'refund');
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
-    const totalAmount = Math.round(revenueRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
-    // 退款总额（仅供参考）
-    const totalRefund = Math.round(revenueRecords.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
-    console.log(`=== 金额汇总 (API已过滤) ===`);
-    console.log(`充值总额: ${totalAmount}`);
-    console.log(`记录数: ${revenueRecords.length}`);
-    console.log(`退款总额(参考): ${totalRefund}`);
+    // 营收总额 = 营收订单的 order_fee 总和
+    const revenueTotal = Math.round(revenueRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
+    // 退货总额 = 退货订单的 order_fee 总和
+    const refundTotal = Math.round(refundRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
+    // 净收入 = 营收 - 退货
+    const totalAmount = Math.round((revenueTotal - refundTotal) * 100) / 100;
+    // 保留 totalRefund 变量名以兼容
+    const totalRefund = refundTotal;
+
+    console.log(`=== 金额汇总 (按 category 分类) ===`);
+    console.log(`营收订单: ${revenueRecords.length} 条，金额: ¥${revenueTotal}`);
+    console.log(`退货订单: ${refundRecords.length} 条，金额: ¥${refundTotal}`);
+    console.log(`净收入: ¥${totalAmount}`);
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
@@ -3037,25 +3044,30 @@ function processRechargeData() {
     // 四舍五入到分
     Object.values(byType).forEach(v => v.amount = Math.round(v.amount * 100) / 100);
 
-    // 按日期统计
+    // 按日期统计（区分营收和退货）
     const byDate = {};
     rechargeRawData.forEach(r => {
         if (r.create_time) {
             const date = r.create_time.split('T')[0];
             if (!byDate[date]) {
-                byDate[date] = { count: 0, amount: 0, gift: 0, refund: 0 };
+                byDate[date] = { count: 0, revenue: 0, refund: 0, amount: 0, gift: 0 };
             }
             byDate[date].count++;
-            byDate[date].amount += getNetAmount(r);
+            const orderFee = getNetAmount(r);
+            if (r.category === 'refund') {
+                byDate[date].refund += orderFee;
+            } else {
+                byDate[date].revenue += orderFee;
+            }
             byDate[date].gift += parseFloat(r.gift_fee) || 0;
-            byDate[date].refund += parseFloat(r.refund_fee) || 0;
         }
     });
-    // 四舍五入到分
+    // 四舍五入到分，并计算净收入
     Object.values(byDate).forEach(v => {
-        v.amount = Math.round(v.amount * 100) / 100;
-        v.gift = Math.round(v.gift * 100) / 100;
+        v.revenue = Math.round(v.revenue * 100) / 100;
         v.refund = Math.round(v.refund * 100) / 100;
+        v.amount = Math.round((v.revenue - v.refund) * 100) / 100;  // 净收入
+        v.gift = Math.round(v.gift * 100) / 100;
     });
 
     // 按小时统计
@@ -3112,10 +3124,14 @@ function processRechargeData() {
         .slice(0, 10);
 
     rechargeProcessedData = {
-        totalAmount,
-        totalRefund,
+        totalAmount,      // 净收入 = 营收 - 退货
+        revenueTotal,     // 营收总额
+        refundTotal,      // 退货总额
+        totalRefund,      // 兼容旧代码
         totalGift,
         count: rechargeRawData.length,
+        revenueCount: revenueRecords.length,
+        refundCount: refundRecords.length,
         uniqueUsers,
         byChannel,
         byType,

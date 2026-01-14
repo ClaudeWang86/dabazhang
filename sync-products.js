@@ -921,6 +921,323 @@ async function syncRechargeRecords(startDate, endDate) {
     }
 }
 
+// =====================================================
+// 订单数据同步功能（营收订单 + 退货订单）
+// =====================================================
+
+/**
+ * 订单类型配置
+ * 营收订单：正常交易产生的收入
+ * 退货订单：退款/退货产生的支出
+ */
+const ORDER_CONFIG = {
+    // 营收订单过滤参数
+    revenue: {
+        orderTypeList: [1, 2, 4, 10, 12, 16, 17, 18, 19, 23, 24, 25, 27, 28, 38],
+        orderStateList: [2, 3, 4, 9],
+        orderPayWayList: [1, 2, 3, 4]
+    },
+    // 退货订单过滤参数
+    refund: {
+        orderTypeList: [29, 30, 3, 32, 33, 34, 35, 36, 37, 31, 22, 26],
+        orderStateList: [3],
+        orderPayWayList: [1, 2, 3, 4]
+    }
+};
+
+/**
+ * 获取订单数据（单页）
+ * @param {string} token - 认证 token
+ * @param {number} startTime - 开始时间戳
+ * @param {number} endTime - 结束时间戳
+ * @param {string} category - 订单类型 'revenue' 或 'refund'
+ * @param {number} page - 页码
+ * @param {number} pageSize - 每页数量
+ */
+async function fetchOrdersPage(token, startTime, endTime, category, page = 1, pageSize = 500) {
+    const config = ORDER_CONFIG[category];
+    if (!config) {
+        throw new Error(`未知的订单类型: ${category}`);
+    }
+
+    // 构建 URL 参数
+    const params = new URLSearchParams();
+    params.append('timeType', '0');
+    params.append('gidList[0]', API_CONFIG.gid);
+    params.append('pageIndex', page);
+    params.append('pageSize', pageSize);
+    params.append('account', '');
+    params.append('membername', '');
+    params.append('starttime', startTime);
+    params.append('endtime', endTime);
+    params.append('orderid', '');
+
+    // 添加支付方式过滤
+    config.orderPayWayList.forEach((v, i) => {
+        params.append(`orderPayWayList[${i}]`, v);
+    });
+
+    // 添加订单类型过滤
+    config.orderTypeList.forEach((v, i) => {
+        params.append(`orderTypeList[${i}]`, v);
+    });
+
+    // 添加订单状态过滤
+    config.orderStateList.forEach((v, i) => {
+        params.append(`orderStateList[${i}]`, v);
+    });
+
+    let data;
+    if (useProxy()) {
+        // Vercel 代理模式
+        const proxyParams = new URLSearchParams({
+            action: 'orders',
+            token: token,
+            startTime: startTime,
+            endTime: endTime,
+            category: category,
+            page: page,
+            pageSize: pageSize
+        });
+        const response = await fetch(`/api/sync-proxy?${proxyParams.toString()}`);
+        data = await response.json();
+    } else {
+        // 直接调用
+        const response = await fetch(`${API_CONFIG.baseUrl}/netbar/admin/netbarOrder/select?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Origin': 'https://admin.yisbar.com',
+                'Referer': 'https://admin.yisbar.com/',
+                'source': String(API_CONFIG.source),
+                'token': token
+            }
+        });
+        data = await response.json();
+    }
+
+    if (data.state !== 0) {
+        throw new Error(`获取${category === 'revenue' ? '营收' : '退货'}订单失败: ${data.des || '未知错误'}`);
+    }
+
+    return {
+        records: data.data?.list || [],
+        total: data.data?.total || 0
+    };
+}
+
+/**
+ * 获取所有订单（自动分页）
+ */
+async function fetchAllOrders(token, startTime, endTime, category) {
+    const categoryName = category === 'revenue' ? '营收' : '退货';
+    console.log(`正在获取${categoryName}订单...`);
+
+    const pageSize = 500;
+    let page = 1;
+    let allRecords = [];
+    let hasMore = true;
+
+    while (hasMore) {
+        const result = await fetchOrdersPage(token, startTime, endTime, category, page, pageSize);
+        allRecords = allRecords.concat(result.records);
+
+        console.log(`  ${categoryName}订单第 ${page} 页: 获取 ${result.records.length} 条 (总计: ${allRecords.length}/${result.total})`);
+
+        hasMore = allRecords.length < result.total;
+        page++;
+    }
+
+    return allRecords;
+}
+
+/**
+ * 转换订单数据为 recharges 表格式
+ * @param {Array} records - API 返回的订单记录
+ * @param {string} category - 订单类别 'revenue' 或 'refund'
+ */
+function transformOrderRecords(records, category) {
+    return records.map(r => {
+        const orderId = r.orderid || r.orderId || r.id || r.orderCode || '';
+        const createTime = r.createtime || r.createTime || r.addtime || r.ordertime || r.orderTime;
+
+        return {
+            order_id: String(orderId),
+            category: category,  // 'revenue' 或 'refund'
+            account: String(r.account || r.memberaccount || r.memberAccount || ''),
+            member_name: r.membername || r.memberName || r.nickname || null,
+            order_fee: Number(((r.orderfee || r.orderFee || 0) / 100).toFixed(2)),
+            pay_fee: Number(((r.payfee || r.payFee || r.orderfee || 0) / 100).toFixed(2)),
+            gift_fee: Number(((r.adwardfee || r.awardFee || r.giftfee || 0) / 100).toFixed(2)),
+            refund_fee: Number(((r.refundFee || r.refundfee || 0) / 100).toFixed(2)),
+            deposit: Number(((r.deposit || 0) / 100).toFixed(2)),
+            pay_type: r.orderway ?? null,
+            pay_channel: r.ordertype ?? null,
+            order_subtype: r.ordersubway ?? null,
+            state: r.state ?? null,
+            refund_time: timestampToISO(r.refundtime),
+            parent_order_id: r.parentorderid ? String(r.parentorderid) : null,
+            create_time: timestampToISO(createTime),
+            pay_time: timestampToISO(r.paytime || r.payTime || r.successtime),
+            store: '太初电竞'
+        };
+    }).filter(r => r.order_id);
+}
+
+/**
+ * 保存订单到 Supabase recharges 表
+ */
+async function saveOrdersToSupabase(orders, orderDate) {
+    console.log(`正在保存 ${orders.length} 条订单到 recharges 表 (${orderDate})...`);
+
+    if (orders.length === 0) {
+        console.log('没有需要保存的订单');
+        return 0;
+    }
+
+    const config = getSupabaseConfig();
+    const supabaseUrl = `${config.url}/rest/v1`;
+    const headers = {
+        'apikey': config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+    };
+
+    // 分批上传到 recharges 表
+    const batchSize = 50;
+    let uploaded = 0;
+
+    for (let i = 0; i < orders.length; i += batchSize) {
+        const batch = orders.slice(i, i + batchSize);
+
+        try {
+            const response = await fetch(`${supabaseUrl}/recharges`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' },
+                body: JSON.stringify(batch)
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error(`批次上传失败 (HTTP ${response.status}):`, error);
+            } else {
+                uploaded += batch.length;
+            }
+        } catch (err) {
+            console.error('上传请求失败:', err.message);
+        }
+    }
+
+    console.log(`  已上传 ${uploaded} 条订单`);
+    return uploaded;
+}
+
+/**
+ * 更新 recharge_dates 日期汇总表
+ */
+async function updateOrderDates(orderDate, revenueOrders, refundOrders) {
+    const config = getSupabaseConfig();
+    const supabaseUrl = `${config.url}/rest/v1`;
+    const headers = {
+        'apikey': config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+    };
+
+    // 计算汇总数据
+    const revenueTotal = revenueOrders.reduce((sum, r) => sum + (r.order_fee || 0), 0);
+    const refundTotal = refundOrders.reduce((sum, r) => sum + (r.order_fee || 0), 0);
+    const netRevenue = revenueTotal - refundTotal;
+    const totalGift = [...revenueOrders, ...refundOrders].reduce((sum, r) => sum + (r.gift_fee || 0), 0);
+
+    const summary = {
+        date: orderDate,
+        record_count: revenueOrders.length + refundOrders.length,
+        total_amount: Math.round(revenueTotal * 100) / 100,
+        total_gift: Math.round(totalGift * 100) / 100,
+        revenue_total: Math.round(revenueTotal * 100) / 100,
+        refund_total: Math.round(refundTotal * 100) / 100,
+        net_revenue: Math.round(netRevenue * 100) / 100
+    };
+
+    await fetch(`${supabaseUrl}/recharge_dates`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(summary)
+    });
+
+    console.log(`  日期汇总: 营收 ¥${summary.revenue_total} - 退货 ¥${summary.refund_total} = 净收入 ¥${summary.net_revenue}`);
+}
+
+/**
+ * 主同步函数 - 订单数据
+ */
+async function syncOrderRecords(startDate, endDate) {
+    console.log('========================================');
+    console.log('订单数据同步（营收 + 退货）');
+    console.log(`日期范围: ${startDate} 至 ${endDate}`);
+    console.log('========================================\n');
+
+    try {
+        // 1. 登录
+        const token = await login();
+
+        // 2. 生成日期列表
+        const dates = generateDateRange(startDate, endDate);
+        console.log(`\n将同步 ${dates.length} 天的数据\n`);
+
+        let totalRevenue = 0;
+        let totalRefund = 0;
+
+        // 3. 逐日同步
+        for (const date of dates) {
+            console.log(`\n--- 处理 ${date} ---`);
+
+            // 计算时间戳
+            const startTime = dateToTimestamp(date, false);
+            const endTime = dateToTimestamp(date, true);
+
+            // 获取营收订单
+            const revenueRecords = await fetchAllOrders(token, startTime, endTime, 'revenue');
+            const revenueOrders = transformOrderRecords(revenueRecords, 'revenue');
+            console.log(`  营收订单: ${revenueOrders.length} 条`);
+
+            // 获取退货订单
+            const refundRecords = await fetchAllOrders(token, startTime, endTime, 'refund');
+            const refundOrders = transformOrderRecords(refundRecords, 'refund');
+            console.log(`  退货订单: ${refundOrders.length} 条`);
+
+            // 合并并保存
+            const allOrders = [...revenueOrders, ...refundOrders];
+            if (allOrders.length > 0) {
+                await saveOrdersToSupabase(allOrders, date);
+                await updateOrderDates(date, revenueOrders, refundOrders);
+
+                totalRevenue += revenueOrders.reduce((sum, r) => sum + (r.order_fee || 0), 0);
+                totalRefund += refundOrders.reduce((sum, r) => sum + (r.order_fee || 0), 0);
+            } else {
+                console.log('  当天无订单数据');
+            }
+        }
+
+        const netTotal = totalRevenue - totalRefund;
+        console.log('\n========================================');
+        console.log(`同步完成！`);
+        console.log(`  营收总额: ¥${totalRevenue.toFixed(2)}`);
+        console.log(`  退货总额: ¥${totalRefund.toFixed(2)}`);
+        console.log(`  净收入: ¥${netTotal.toFixed(2)}`);
+        console.log('========================================');
+
+        return { success: true, revenue: totalRevenue, refund: totalRefund, net: netTotal };
+
+    } catch (error) {
+        console.error('同步失败:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 // 导出供浏览器使用
 if (typeof window !== 'undefined') {
     window.syncProductSales = syncProductSales;
@@ -942,6 +1259,13 @@ if (typeof window !== 'undefined') {
     window.transformRechargeRecords = transformRechargeRecords;
     window.saveRechargesToSupabase = saveRechargesToSupabase;
     window.syncRechargeRecords = syncRechargeRecords;
+    // 订单同步函数（营收 + 退货）
+    window.ORDER_CONFIG = ORDER_CONFIG;
+    window.fetchAllOrders = fetchAllOrders;
+    window.transformOrderRecords = transformOrderRecords;
+    window.saveOrdersToSupabase = saveOrdersToSupabase;
+    window.updateOrderDates = updateOrderDates;
+    window.syncOrderRecords = syncOrderRecords;
 }
 
 // Node.js 命令行执行
