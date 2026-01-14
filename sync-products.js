@@ -371,11 +371,20 @@ function dateToTimestamp(dateStr, isEndOfDay = false) {
 }
 
 /**
- * 将 Unix 时间戳转换为 ISO 日期时间字符串
+ * 将 Unix 时间戳转换为 ISO 日期时间字符串（保留北京时间，不转换为 UTC）
  */
 function timestampToISO(timestamp) {
     if (!timestamp) return null;
-    return new Date(timestamp * 1000).toISOString();
+    const date = new Date(timestamp * 1000);
+    // 格式化为 ISO 字符串，保留本地时区（北京时间 +08:00）
+    const pad = n => String(n).padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+08:00`;
 }
 
 /**
