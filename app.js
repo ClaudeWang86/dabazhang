@@ -2979,17 +2979,27 @@ function processRechargeData() {
         return;
     }
 
-    // 计算订单的实际金额（订单金额 - 退款金额）
+    // pay_channel=30 是押金操作，不计入充值收入
+    const isDepositOperation = (r) => {
+        const pc = Number(r.pay_channel);
+        return pc === 30;
+    };
+
+    // 计算订单的实际金额（订单金额 - 退款金额，押金操作不计入）
     const getNetAmount = (r) => {
+        if (isDepositOperation(r)) return 0;  // 押金操作不计入收入
         const orderFee = parseFloat(r.order_fee) || 0;
         const refundFee = parseFloat(r.refund_fee) || 0;
         return orderFee - refundFee;
     };
 
+    // 过滤掉押金操作的记录用于统计
+    const revenueRecords = rechargeRawData.filter(r => !isDepositOperation(r));
+
     // 基础统计（使用 Math.round 避免浮点数精度问题）
-    const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
+    const totalAmount = Math.round(revenueRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
     // 退款总额
-    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
+    const totalRefund = Math.round(revenueRecords.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 

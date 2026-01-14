@@ -707,20 +707,16 @@ async function fetchAllRecharges(token, startTime, endTime) {
  * 转换 API 记录为 recharges 表格式
  */
 function transformRechargeRecords(records) {
-    // 调试：打印指定订单的完整 API 返回
-    const debugOrderIds = ['188917', '188922', '188473', 188917, 188922, 188473];
-    records.forEach(r => {
-        const orderId = r.orderid || r.orderId;
-        if (debugOrderIds.includes(orderId) || debugOrderIds.includes(String(orderId))) {
-            console.log(`\n========== 订单 ${orderId} 完整 API 返回 ==========`);
-            console.log(JSON.stringify(r, null, 2));
-            console.log('='.repeat(50));
-        }
-    });
+    // 状态说明: 3=已完成, 4=全额退款, 9=部分退款
+    // ordertype 30 = 押金退还（不计入充值收入）
+    const VALID_STATES = [3, 4, 9];
 
     const transformed = records
+        .filter(r => {
+            const state = r.state ?? r.orderstatus ?? 0;
+            return VALID_STATES.includes(state);
+        })
         .map(r => {
-            // 尝试多种可能的字段名
             const orderId = r.orderid || r.orderId || r.id || r.orderCode || '';
             const createTime = r.createtime || r.createTime || r.addtime || r.ordertime || r.orderTime;
 
@@ -731,34 +727,32 @@ function transformRechargeRecords(records) {
                 order_fee: Number(((r.orderfee || r.orderFee || 0) / 100).toFixed(2)),
                 pay_fee: Number(((r.payfee || r.payFee || r.orderfee || 0) / 100).toFixed(2)),
                 gift_fee: Number(((r.adwardfee || r.awardFee || r.giftfee || 0) / 100).toFixed(2)),
-                refund_fee: Number(((r.refundFee || r.refundfee || 0) / 100).toFixed(2)),  // 退款金额
-                pay_type: r.orderway ?? null,           // 存原始数字：1=支付宝, 2=微信, 3=现金, 4=线下, 5=卡券兑换
-                pay_channel: r.ordertype ?? null,       // 存原始数字：1=账户充值, 3=卡券活动, 4=购买商品...
-                order_subtype: r.ordersubway ?? null,   // 存原始数字：卡券子类型（抖音/美团）
-                order_status: r.orderstatus ?? r.orderStatus ?? r.status ?? 1,
+                refund_fee: Number(((r.refundFee || r.refundfee || 0) / 100).toFixed(2)),
+                deposit: Number(((r.deposit || 0) / 100).toFixed(2)),  // 押金（负数表示退还）
+                pay_type: r.orderway ?? null,
+                pay_channel: r.ordertype ?? null,
+                order_subtype: r.ordersubway ?? null,
+                state: r.state ?? null,  // 3=已完成, 4=全额退款, 9=部分退款
+                refund_time: timestampToISO(r.refundtime),
+                parent_order_id: r.parentorderid ? String(r.parentorderid) : null,
                 create_time: timestampToISO(createTime),
                 pay_time: timestampToISO(r.paytime || r.payTime || r.successtime),
                 store: '太初电竞'
             };
         })
-        .filter(r => r.order_id);  // 只要有订单号就保留
+        .filter(r => r.order_id);
 
-    // 过滤只保留已成功的订单 (state=3)
-    const successRecords = transformed.filter(r => {
-        // 从原始记录中获取状态
-        const originalRecord = records.find(orig =>
-            String(orig.orderid || orig.orderId) === r.order_id
-        );
-        const state = originalRecord?.state ?? originalRecord?.orderstatus ?? 3;
-        return state === 3;  // state=3 表示已成功
+    console.log(`转换完成: ${records.length} 条 -> ${transformed.length} 条有效记录`);
+
+    // 统计各状态数量
+    const stateCounts = {};
+    transformed.forEach(r => {
+        const s = r.state ?? 'unknown';
+        stateCounts[s] = (stateCounts[s] || 0) + 1;
     });
+    console.log('状态分布:', stateCounts);
 
-    console.log(`状态过滤: ${transformed.length} 条 -> ${successRecords.length} 条已成功订单`);
-    if (successRecords.length > 0) {
-        console.log('转换后记录示例:', JSON.stringify(successRecords[0], null, 2));
-    }
-
-    return successRecords;
+    return transformed;
 }
 
 /**
