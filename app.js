@@ -2979,33 +2979,17 @@ function processRechargeData() {
         return;
     }
 
-    // 退款类型订单的 pay_channel 值
-    const REFUND_PAY_CHANNELS = ['8', '9', '30', 8, 9, 30];
-
-    // 判断是否为退款订单
-    const isRefundOrder = (r) => REFUND_PAY_CHANNELS.includes(r.pay_channel);
-
-    // 计算订单的实际金额（退款订单为负数）
+    // 计算订单的实际金额（订单金额 - 退款金额）
     const getNetAmount = (r) => {
         const orderFee = parseFloat(r.order_fee) || 0;
         const refundFee = parseFloat(r.refund_fee) || 0;
-        if (isRefundOrder(r)) {
-            // 退款订单：order_fee 是退款金额，应该减去
-            return -orderFee;
-        }
-        // 普通订单：订单金额 - 部分退款
         return orderFee - refundFee;
     };
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
     const totalAmount = Math.round(rechargeRawData.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
-    // 退款总额（包括退款订单的 order_fee 和普通订单的 refund_fee）
-    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => {
-        if (isRefundOrder(r)) {
-            return sum + (parseFloat(r.order_fee) || 0);
-        }
-        return sum + (parseFloat(r.refund_fee) || 0);
-    }, 0) * 100) / 100;
+    // 退款总额
+    const totalRefund = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
@@ -3059,12 +3043,7 @@ function processRechargeData() {
             byDate[date].count++;
             byDate[date].amount += getNetAmount(r);
             byDate[date].gift += parseFloat(r.gift_fee) || 0;
-            // 退款金额：退款订单的 order_fee 或普通订单的 refund_fee
-            if (isRefundOrder(r)) {
-                byDate[date].refund += parseFloat(r.order_fee) || 0;
-            } else {
-                byDate[date].refund += parseFloat(r.refund_fee) || 0;
-            }
+            byDate[date].refund += parseFloat(r.refund_fee) || 0;
         }
     });
     // 四舍五入到分
@@ -3096,8 +3075,6 @@ function processRechargeData() {
         '1000+': { count: 0, amount: 0 }
     };
     rechargeRawData.forEach(r => {
-        // 退款订单不计入金额区间统计
-        if (isRefundOrder(r)) return;
         const orderFee = parseFloat(r.order_fee) || 0;
         // 按订单金额分类区间
         let range;
