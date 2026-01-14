@@ -363,11 +363,11 @@ async function syncProductSales(startDate, endDate) {
  * 将日期转换为 Unix 时间戳（北京时间）
  */
 function dateToTimestamp(dateStr, isEndOfDay = false) {
-    const date = new Date(dateStr + 'T00:00:00+08:00');
+    // 直接用完整的 ISO 字符串创建，避免 setHours 的时区问题
     if (isEndOfDay) {
-        date.setHours(23, 59, 59, 999);
+        return Math.floor(new Date(dateStr + 'T23:59:59+08:00').getTime() / 1000);
     }
-    return Math.floor(date.getTime() / 1000);
+    return Math.floor(new Date(dateStr + 'T00:00:00+08:00').getTime() / 1000);
 }
 
 /**
