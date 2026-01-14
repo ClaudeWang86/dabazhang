@@ -2874,8 +2874,8 @@ async function loadRechargeDataByDateRange(startDate, endDate) {
             const { data, error } = await db
                 .from('recharges')
                 .select('*')
-                .gte('create_time', startDate + 'T00:00:00+08:00')
-                .lte('create_time', endDate + 'T23:59:59+08:00')
+                .gte('create_time', startDate + 'T00:00:00')
+                .lte('create_time', endDate + 'T23:59:59')
                 .order('create_time', { ascending: false })
                 .range(from, to);
 
