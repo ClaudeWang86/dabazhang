@@ -2981,9 +2981,11 @@ function processRechargeData() {
         return;
     }
 
-    // 计算订单的实际金额：直接使用 order_fee
+    // 计算订单的实际金额：order_fee + deposit（押金也计入营收）
     const getNetAmount = (r) => {
-        return parseFloat(r.order_fee) || 0;
+        const orderFee = parseFloat(r.order_fee) || 0;
+        const deposit = parseFloat(r.deposit) || 0;
+        return orderFee + deposit;
     };
 
     // 根据 category 字段区分营收订单和退货订单
@@ -2998,6 +3000,26 @@ function processRechargeData() {
         categoryStats[cat] = (categoryStats[cat] || 0) + 1;
     });
     console.log('=== category 字段分布 ===', categoryStats);
+
+    // 调试：检查不同金额字段的总和
+    const debugSums = {
+        order_fee: 0,
+        pay_fee: 0,
+        gift_fee: 0,
+        deposit: 0
+    };
+    revenueRecords.forEach(r => {
+        debugSums.order_fee += parseFloat(r.order_fee) || 0;
+        debugSums.pay_fee += parseFloat(r.pay_fee) || 0;
+        debugSums.gift_fee += parseFloat(r.gift_fee) || 0;
+        debugSums.deposit += parseFloat(r.deposit) || 0;
+    });
+    console.log('=== 营收订单各字段金额总和 ===');
+    console.log(`order_fee 总和: ¥${debugSums.order_fee.toFixed(2)}`);
+    console.log(`pay_fee 总和: ¥${debugSums.pay_fee.toFixed(2)}`);
+    console.log(`gift_fee 总和: ¥${debugSums.gift_fee.toFixed(2)}`);
+    console.log(`deposit 总和: ¥${debugSums.deposit.toFixed(2)}`);
+    console.log(`order_fee - deposit: ¥${(debugSums.order_fee - debugSums.deposit).toFixed(2)}`);
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
     // 营收总额 = 营收订单的 order_fee 总和
