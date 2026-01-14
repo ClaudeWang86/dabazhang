@@ -31,6 +31,8 @@ let unifiedSyncDateRange = { start: null, end: null };
 
 // 充值记录数据存储
 let rechargeAvailableDates = [];
+let rechargeRawData = [];
+let rechargeProcessedData = {};
 
 // DOM 元素
 const fileInput = document.getElementById('fileInput');
@@ -111,6 +113,11 @@ function switchAnalysisSubtab(subtab) {
     // 如果切换到用户画像，确保渲染图表
     if (subtab === 'userProfile' && rawData.length > 0) {
         renderUserProfile();
+    }
+
+    // 如果切换到充值分析，确保渲染图表
+    if (subtab === 'recharge' && rechargeRawData.length > 0) {
+        renderRechargeAnalysis();
     }
 
     // 重新调整图表大小
@@ -245,7 +252,8 @@ async function loadUnifiedData() {
         await Promise.all([
             loadDataByDateRange(unifiedDateRange.start, unifiedDateRange.end),
             loadProductDataByDateRange(unifiedDateRange.start, unifiedDateRange.end),
-            loadSeatMapDataByRange(unifiedDateRange.start, unifiedDateRange.end)
+            loadSeatMapDataByRange(unifiedDateRange.start, unifiedDateRange.end),
+            loadRechargeDataByDateRange(unifiedDateRange.start, unifiedDateRange.end)
         ]);
 
         // 显示子标签页区域和sidebar子导航
@@ -255,10 +263,19 @@ async function loadUnifiedData() {
         // 处理用户画像数据并重新渲染
         processUserProfileData();
 
+        // 处理充值数据
+        processRechargeData();
+
         // 如果当前在用户画像页面，重新渲染图表
         const userProfileSubcontent = document.getElementById('userProfileSubcontent');
         if (userProfileSubcontent?.classList.contains('active')) {
             renderUserProfile();
+        }
+
+        // 如果当前在充值分析页面，重新渲染图表
+        const rechargeSubcontent = document.getElementById('rechargeSubcontent');
+        if (rechargeSubcontent?.classList.contains('active')) {
+            renderRechargeAnalysis();
         }
 
     } catch (err) {
@@ -285,7 +302,8 @@ async function loadAllData() {
         await Promise.all([
             loadAllSessionData(),
             loadAllProductData(),
-            loadAllSeatMapData()
+            loadAllSeatMapData(),
+            loadAllRechargeData()
         ]);
 
         // 显示子标签页区域和sidebar子导航
@@ -295,10 +313,19 @@ async function loadAllData() {
         // 处理用户画像数据并重新渲染
         processUserProfileData();
 
+        // 处理充值数据
+        processRechargeData();
+
         // 如果当前在用户画像页面，重新渲染图表
         const userProfileSubcontent = document.getElementById('userProfileSubcontent');
         if (userProfileSubcontent?.classList.contains('active')) {
             renderUserProfile();
+        }
+
+        // 如果当前在充值分析页面，重新渲染图表
+        const rechargeSubcontent = document.getElementById('rechargeSubcontent');
+        if (rechargeSubcontent?.classList.contains('active')) {
+            renderRechargeAnalysis();
         }
 
     } catch (err) {
@@ -2827,6 +2854,396 @@ async function loadRechargeAvailableDates() {
         console.error('加载充值日期失败:', err);
         rechargeAvailableDates = [];
     }
+}
+
+// 按日期范围加载充值数据
+async function loadRechargeDataByDateRange(startDate, endDate) {
+    try {
+        console.log(`加载充值数据: ${startDate} 至 ${endDate}`);
+
+        // 分页获取所有数据
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const from = page * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            const { data, error } = await db
+                .from('recharges')
+                .select('*')
+                .gte('create_time', startDate + 'T00:00:00+08:00')
+                .lte('create_time', endDate + 'T23:59:59+08:00')
+                .order('create_time', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            allData = allData.concat(data);
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+        }
+
+        console.log(`查询到 ${allData.length} 条充值记录`);
+        rechargeRawData = allData;
+
+        if (allData.length > 0) {
+            processRechargeData();
+        }
+    } catch (err) {
+        console.error('加载充值数据失败:', err);
+        rechargeRawData = [];
+    }
+}
+
+// 加载全部充值数据
+async function loadAllRechargeData() {
+    try {
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const from = page * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            const { data, error } = await db
+                .from('recharges')
+                .select('*')
+                .order('create_time', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            allData = allData.concat(data);
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+        }
+
+        console.log(`共加载 ${allData.length} 条充值记录`);
+        rechargeRawData = allData;
+
+        if (allData.length > 0) {
+            processRechargeData();
+        }
+    } catch (err) {
+        console.error('加载充值数据失败:', err);
+        rechargeRawData = [];
+    }
+}
+
+// 处理充值数据
+function processRechargeData() {
+    if (rechargeRawData.length === 0) {
+        rechargeProcessedData = {};
+        return;
+    }
+
+    // 基础统计
+    const totalAmount = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.order_fee) || 0), 0);
+    const totalGift = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0);
+    const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
+
+    // 按支付渠道统计
+    const byChannel = {};
+    rechargeRawData.forEach(r => {
+        const channel = r.pay_channel || '其他';
+        if (!byChannel[channel]) {
+            byChannel[channel] = { count: 0, amount: 0 };
+        }
+        byChannel[channel].count++;
+        byChannel[channel].amount += parseFloat(r.order_fee) || 0;
+    });
+
+    // 按支付方式统计
+    const byType = {};
+    rechargeRawData.forEach(r => {
+        const type = r.pay_type || '其他';
+        if (!byType[type]) {
+            byType[type] = { count: 0, amount: 0 };
+        }
+        byType[type].count++;
+        byType[type].amount += parseFloat(r.order_fee) || 0;
+    });
+
+    // 按日期统计
+    const byDate = {};
+    rechargeRawData.forEach(r => {
+        if (r.create_time) {
+            const date = r.create_time.split('T')[0];
+            if (!byDate[date]) {
+                byDate[date] = { count: 0, amount: 0, gift: 0 };
+            }
+            byDate[date].count++;
+            byDate[date].amount += parseFloat(r.order_fee) || 0;
+            byDate[date].gift += parseFloat(r.gift_fee) || 0;
+        }
+    });
+
+    // 按小时统计
+    const byHour = Array(24).fill(0).map(() => ({ count: 0, amount: 0 }));
+    rechargeRawData.forEach(r => {
+        if (r.create_time) {
+            const hour = new Date(r.create_time).getHours();
+            byHour[hour].count++;
+            byHour[hour].amount += parseFloat(r.order_fee) || 0;
+        }
+    });
+
+    // 按金额区间统计
+    const amountRanges = {
+        '0-50': { count: 0, amount: 0 },
+        '50-100': { count: 0, amount: 0 },
+        '100-200': { count: 0, amount: 0 },
+        '200-500': { count: 0, amount: 0 },
+        '500-1000': { count: 0, amount: 0 },
+        '1000+': { count: 0, amount: 0 }
+    };
+    rechargeRawData.forEach(r => {
+        const amount = parseFloat(r.order_fee) || 0;
+        let range;
+        if (amount < 50) range = '0-50';
+        else if (amount < 100) range = '50-100';
+        else if (amount < 200) range = '100-200';
+        else if (amount < 500) range = '200-500';
+        else if (amount < 1000) range = '500-1000';
+        else range = '1000+';
+        amountRanges[range].count++;
+        amountRanges[range].amount += amount;
+    });
+
+    // 用户充值排行
+    const userStats = {};
+    rechargeRawData.forEach(r => {
+        const account = r.account || '未知';
+        if (!userStats[account]) {
+            userStats[account] = { name: r.member_name || account, count: 0, amount: 0 };
+        }
+        userStats[account].count++;
+        userStats[account].amount += parseFloat(r.order_fee) || 0;
+    });
+    const topUsers = Object.values(userStats)
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 10);
+
+    rechargeProcessedData = {
+        totalAmount,
+        totalGift,
+        count: rechargeRawData.length,
+        uniqueUsers,
+        byChannel,
+        byType,
+        byDate,
+        byHour,
+        amountRanges,
+        topUsers
+    };
+}
+
+// 渲染充值分析
+function renderRechargeAnalysis() {
+    if (!rechargeProcessedData.count) {
+        return;
+    }
+
+    // 更新统计卡片
+    document.getElementById('rechargeTotalAmount').textContent = `¥${rechargeProcessedData.totalAmount.toFixed(2)}`;
+    document.getElementById('rechargeTotalGift').textContent = `¥${rechargeProcessedData.totalGift.toFixed(2)}`;
+    document.getElementById('rechargeCount').textContent = rechargeProcessedData.count;
+    document.getElementById('rechargeUserCount').textContent = rechargeProcessedData.uniqueUsers;
+
+    // 渲染图表
+    renderRechargeDailyChart();
+    renderRechargeChannelChart();
+    renderRechargeTypeChart();
+    renderRechargeAmountDistChart();
+    renderRechargeHourlyChart();
+    renderRechargeTopUsersChart();
+}
+
+// 每日充值趋势图
+function renderRechargeDailyChart() {
+    const chartDom = document.getElementById('rechargeDailyChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeDaily) charts.rechargeDaily.dispose();
+    charts.rechargeDaily = echarts.init(chartDom);
+
+    const dates = Object.keys(rechargeProcessedData.byDate).sort();
+    const amounts = dates.map(d => rechargeProcessedData.byDate[d].amount);
+    const counts = dates.map(d => rechargeProcessedData.byDate[d].count);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+        legend: { data: ['充值金额', '充值笔数'], textStyle: { color: '#a0aec0' } },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: [
+            { type: 'value', name: '金额', axisLabel: { color: '#a0aec0', formatter: '¥{value}' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+            { type: 'value', name: '笔数', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { show: false } }
+        ],
+        series: [
+            { name: '充值金额', type: 'bar', data: amounts, itemStyle: { color: '#48bb78' } },
+            { name: '充值笔数', type: 'line', yAxisIndex: 1, data: counts, smooth: true, itemStyle: { color: '#667eea' } }
+        ]
+    };
+    charts.rechargeDaily.setOption(option);
+}
+
+// 支付渠道分布图
+function renderRechargeChannelChart() {
+    const chartDom = document.getElementById('rechargeChannelChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeChannel) charts.rechargeChannel.dispose();
+    charts.rechargeChannel = echarts.init(chartDom);
+
+    const data = Object.entries(rechargeProcessedData.byChannel).map(([name, stats]) => ({
+        name,
+        value: stats.amount
+    }));
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#a0aec0' } },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['35%', '50%'],
+            avoidLabelOverlap: false,
+            itemStyle: { borderRadius: 10, borderColor: '#1a202c', borderWidth: 2 },
+            label: { show: false },
+            emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+            data: data,
+            color: ['#667eea', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac']
+        }]
+    };
+    charts.rechargeChannel.setOption(option);
+}
+
+// 支付方式分布图
+function renderRechargeTypeChart() {
+    const chartDom = document.getElementById('rechargeTypeChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeType) charts.rechargeType.dispose();
+    charts.rechargeType = echarts.init(chartDom);
+
+    const data = Object.entries(rechargeProcessedData.byType).map(([name, stats]) => ({
+        name,
+        value: stats.amount
+    }));
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#a0aec0' } },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['35%', '50%'],
+            roseType: 'radius',
+            itemStyle: { borderRadius: 5 },
+            label: { show: false },
+            data: data,
+            color: ['#00f0ff', '#ff00aa', '#667eea', '#48bb78', '#ffd700']
+        }]
+    };
+    charts.rechargeType.setOption(option);
+}
+
+// 充值金额分布图
+function renderRechargeAmountDistChart() {
+    const chartDom = document.getElementById('rechargeAmountDistChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeAmountDist) charts.rechargeAmountDist.dispose();
+    charts.rechargeAmountDist = echarts.init(chartDom);
+
+    const ranges = Object.keys(rechargeProcessedData.amountRanges);
+    const counts = ranges.map(r => rechargeProcessedData.amountRanges[r].count);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: ranges, axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        series: [{
+            type: 'bar',
+            data: counts,
+            itemStyle: {
+                color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#ffd700' }, { offset: 1, color: '#ff8c00' }] },
+                borderRadius: [5, 5, 0, 0]
+            },
+            label: { show: true, position: 'top', color: '#a0aec0' }
+        }]
+    };
+    charts.rechargeAmountDist.setOption(option);
+}
+
+// 充值时段分布图
+function renderRechargeHourlyChart() {
+    const chartDom = document.getElementById('rechargeHourlyChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeHourly) charts.rechargeHourly.dispose();
+    charts.rechargeHourly = echarts.init(chartDom);
+
+    const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+    const amounts = rechargeProcessedData.byHour.map(h => h.amount);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', formatter: (params) => `${params[0].name}<br/>充值金额: ¥${params[0].value.toFixed(2)}` },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: hours, axisLabel: { color: '#a0aec0', interval: 2 }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#a0aec0', formatter: '¥{value}' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        series: [{
+            type: 'line',
+            data: amounts,
+            smooth: true,
+            areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(102, 126, 234, 0.5)' }, { offset: 1, color: 'rgba(102, 126, 234, 0)' }] } },
+            lineStyle: { color: '#667eea', width: 2 },
+            itemStyle: { color: '#667eea' }
+        }]
+    };
+    charts.rechargeHourly.setOption(option);
+}
+
+// 充值 TOP 用户图
+function renderRechargeTopUsersChart() {
+    const chartDom = document.getElementById('rechargeTopUsersChart');
+    if (!chartDom) return;
+
+    if (charts.rechargeTopUsers) charts.rechargeTopUsers.dispose();
+    charts.rechargeTopUsers = echarts.init(chartDom);
+
+    const users = rechargeProcessedData.topUsers;
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: (params) => `${params[0].name}<br/>充值金额: ¥${params[0].value.toFixed(2)}<br/>充值次数: ${users[params[0].dataIndex].count}次`
+        },
+        grid: { left: '3%', right: '12%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'value', axisLabel: { color: '#a0aec0', formatter: '¥{value}' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        yAxis: { type: 'category', data: users.map(u => u.name), axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        series: [{
+            type: 'bar',
+            data: users.map(u => u.amount),
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#48bb78' }, { offset: 1, color: '#38a169' }] }, borderRadius: [0, 5, 5, 0] },
+            label: { show: true, position: 'right', formatter: '¥{c}', color: '#a0aec0' }
+        }]
+    };
+    charts.rechargeTopUsers.setOption(option);
 }
 
 // 开始上机 API 同步

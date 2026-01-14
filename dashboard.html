@@ -205,6 +205,13 @@
                     </svg>
                     <span>用户画像</span>
                 </button>
+                <button class="analysis-subtab" data-subtab="recharge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+                        <line x1="1" y1="10" x2="23" y2="10"/>
+                    </svg>
+                    <span>充值分析</span>
+                </button>
             </div>
         </section>
 
@@ -814,6 +821,79 @@
                 </section>
             </section>
         </div><!-- 结束 userProfileSubcontent -->
+
+        <!-- ========== 充值分析子内容 ========== -->
+        <div class="analysis-subcontent" id="rechargeSubcontent">
+            <section class="recharge-analysis-page">
+                <!-- 充值统计概览卡片 -->
+                <div class="recharge-stats-overview" id="rechargeStatsOverview">
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="rechargeTotalAmount">¥0</div>
+                            <div class="stat-label">充值总额</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎁</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="rechargeTotalGift">¥0</div>
+                            <div class="stat-label">赠送总额</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📝</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="rechargeCount">0</div>
+                            <div class="stat-label">充值笔数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="rechargeUserCount">0</div>
+                            <div class="stat-label">充值人数</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 充值分析图表区域 -->
+                <section class="charts-section">
+                    <div class="chart-row">
+                        <div class="chart-container full-width">
+                            <h3>每日充值趋势</h3>
+                            <div id="rechargeDailyChart" class="chart"></div>
+                        </div>
+                    </div>
+                    <div class="chart-row">
+                        <div class="chart-container">
+                            <h3>支付渠道分布</h3>
+                            <div id="rechargeChannelChart" class="chart"></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>支付方式分布</h3>
+                            <div id="rechargeTypeChart" class="chart"></div>
+                        </div>
+                    </div>
+                    <div class="chart-row">
+                        <div class="chart-container">
+                            <h3>充值金额分布</h3>
+                            <div id="rechargeAmountDistChart" class="chart"></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>充值时段分布</h3>
+                            <div id="rechargeHourlyChart" class="chart"></div>
+                        </div>
+                    </div>
+                    <div class="chart-row">
+                        <div class="chart-container full-width">
+                            <h3>充值金额 TOP 10 用户</h3>
+                            <div id="rechargeTopUsersChart" class="chart"></div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </div><!-- 结束 rechargeSubcontent -->
 
         <!-- 用户列表弹窗 -->
         <div class="user-list-modal hidden" id="userListModal">
