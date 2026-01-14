@@ -2955,14 +2955,9 @@ function getOrderTypeName(orderType, orderSubtype) {
     const type = Number(orderType);
     const subtype = Number(orderSubtype);
 
-    // 卡券活动购买(3)需要根据子类型区分抖音/美团
-    if (type === 3) {
-        const subtypes = {
-            1: '美团卡券',
-            3: '抖音卡券'
-        };
-        return subtypes[subtype] || '其他卡券';
-    }
+    // 如果有 order_subtype，优先按抖音/美团卡券分类
+    if (subtype === 1) return '美团卡券';
+    if (subtype === 3) return '抖音卡券';
 
     const types = {
         1: '账户充值',
@@ -2974,7 +2969,7 @@ function getOrderTypeName(orderType, orderSubtype) {
         8: '账户充值退款',
         9: '商品退款'
     };
-    return types[orderType] || '其他';
+    return types[type] || '其他';
 }
 
 // 处理充值数据
