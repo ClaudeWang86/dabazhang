@@ -26,6 +26,8 @@ let syncDatePickerInstance = null;
 let syncDateRange = { start: null, end: null };
 let sessionSyncDatePickerInstance = null;
 let sessionSyncDateRange = { start: null, end: null };
+let unifiedSyncDatePickerInstance = null;
+let unifiedSyncDateRange = { start: null, end: null };
 
 // DOM 元素
 const fileInput = document.getElementById('fileInput');
@@ -39,6 +41,17 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 // 图表实例
 let charts = {};
 
+// 统一日期范围
+let unifiedDateRange = { start: null, end: null };
+let unifiedDatePickerInstance = null;
+
+// 座位分布数据
+let seatMapDateRange = { start: null, end: null };
+let seatUsageData = {};
+let seatMapTooltip = null;
+let seatMapDisplayMode = 'count'; // 'count' or 'utilization'
+let seatMapTotalHours = 0; // 选定日期范围的总小时数
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async () => {
     setupTabs();
@@ -51,15 +64,273 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSyncButtons();
     setupSessionSyncButtons();
     setupDeleteButtons();
+    setupAnalysisSubtabs();
+    setupUserModals();
     window.addEventListener('resize', handleResize);
 
     // 测试数据库连接并加载日期数据
     await testConnection();
     await loadAvailableDates();
     await loadProductAvailableDates();
-    initDatePicker();
-    initProductDatePicker();
+    initUnifiedDatePicker();
 });
+
+// 设置分析子标签页切换
+function setupAnalysisSubtabs() {
+    const subtabs = document.querySelectorAll('.analysis-subtab');
+    subtabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            switchAnalysisSubtab(tab.dataset.subtab);
+        });
+    });
+
+    // 设置sidebar子导航
+    setupSidebarSubnav();
+}
+
+// 切换分析子标签页
+function switchAnalysisSubtab(subtab) {
+    // 切换顶部按钮状态
+    document.querySelectorAll('.analysis-subtab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.analysis-subtab[data-subtab="${subtab}"]`)?.classList.add('active');
+
+    // 切换sidebar子链接状态
+    document.querySelectorAll('.sidebar-sublink').forEach(l => l.classList.remove('active'));
+    document.querySelector(`.sidebar-sublink[data-subtab="${subtab}"]`)?.classList.add('active');
+
+    // 切换子内容
+    document.querySelectorAll('.analysis-subcontent').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(subtab + 'Subcontent')?.classList.add('active');
+
+    // 如果切换到用户画像，确保渲染图表
+    if (subtab === 'userProfile' && rawData.length > 0) {
+        renderUserProfile();
+    }
+
+    // 重新调整图表大小
+    setTimeout(handleResize, 100);
+}
+
+// 设置sidebar子导航点击事件
+function setupSidebarSubnav() {
+    const sublinks = document.querySelectorAll('.sidebar-sublink');
+    sublinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const subtab = link.dataset.subtab;
+            switchAnalysisSubtab(subtab);
+        });
+    });
+}
+
+// 显示sidebar子导航
+function showSidebarSubnav() {
+    document.getElementById('analysisSidebarSubnav')?.classList.remove('hidden');
+}
+
+// 隐藏sidebar子导航
+function hideSidebarSubnav() {
+    document.getElementById('analysisSidebarSubnav')?.classList.add('hidden');
+}
+
+// 初始化统一日期选择器
+function initUnifiedDatePicker() {
+    const datesToMark = availableDates.map(d => d.date);
+
+    unifiedDatePickerInstance = flatpickr('#unifiedDatePicker', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        inline: false,
+        showMonths: 1,
+        defaultDate: getDefaultDateRange(),
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                const dateInfo = availableDates.find(d => d.date === dateStr);
+                if (dateInfo) {
+                    dayElem.title = `${dateInfo.record_count} 条记录，¥${parseFloat(dateInfo.total_revenue).toFixed(0)}`;
+                }
+            }
+        },
+        onChange: function(selectedDates, dateStr, instance) {
+            handleUnifiedDateSelection(selectedDates);
+        }
+    });
+
+    // 如果有数据，默认选中最近有数据的日期范围
+    if (availableDates.length > 0) {
+        const defaultRange = getDefaultDateRange();
+        if (defaultRange.length === 2) {
+            unifiedDatePickerInstance.setDate(defaultRange);
+            handleUnifiedDateSelection(defaultRange.map(d => new Date(d)));
+        }
+    }
+
+    // 绑定加载按钮事件
+    document.getElementById('loadUnifiedDataBtn')?.addEventListener('click', loadUnifiedData);
+    document.getElementById('loadAllDataBtn')?.addEventListener('click', loadAllData);
+}
+
+// 处理统一日期选择
+function handleUnifiedDateSelection(selectedDates) {
+    const loadBtn = document.getElementById('loadUnifiedDataBtn');
+    const selectedRange = document.getElementById('unifiedSelectedRange');
+    const rangeStats = document.getElementById('unifiedRangeStats');
+
+    if (selectedDates.length === 0) {
+        unifiedDateRange = { start: null, end: null };
+        if (loadBtn) loadBtn.disabled = true;
+        if (selectedRange) selectedRange.textContent = '请选择日期';
+        if (rangeStats) rangeStats.textContent = '';
+        return;
+    }
+
+    if (selectedDates.length === 1) {
+        const dateStr = formatDate(selectedDates[0]);
+        unifiedDateRange = { start: dateStr, end: dateStr };
+        if (selectedRange) selectedRange.textContent = dateStr;
+    } else {
+        const startStr = formatDate(selectedDates[0]);
+        const endStr = formatDate(selectedDates[1]);
+        unifiedDateRange = { start: startStr, end: endStr };
+        if (selectedRange) selectedRange.textContent = `${startStr} 至 ${endStr}`;
+    }
+
+    // 计算选中范围内的统计
+    const stats = calculateRangeStats(unifiedDateRange.start, unifiedDateRange.end);
+    if (rangeStats) {
+        rangeStats.innerHTML = `<span>📊 ${stats.records} 条记录</span><span>💰 ¥${stats.revenue.toFixed(0)}</span>`;
+    }
+
+    if (loadBtn) loadBtn.disabled = false;
+}
+
+// 加载统一日期范围的所有数据
+async function loadUnifiedData() {
+    if (!unifiedDateRange.start || !unifiedDateRange.end) {
+        alert('请选择日期范围');
+        return;
+    }
+
+    const loadBtn = document.getElementById('loadUnifiedDataBtn');
+    if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = '<span>⏳</span> 加载中...';
+    }
+
+    try {
+        // 同步日期范围到其他组件
+        selectedDateRange = { ...unifiedDateRange };
+        selectedProductDateRange = { ...unifiedDateRange };
+        seatMapDateRange = { ...unifiedDateRange };
+
+        // 并行加载所有数据
+        await Promise.all([
+            loadDataByDateRange(unifiedDateRange.start, unifiedDateRange.end),
+            loadProductDataByDateRange(unifiedDateRange.start, unifiedDateRange.end),
+            loadSeatMapDataByRange(unifiedDateRange.start, unifiedDateRange.end)
+        ]);
+
+        // 显示子标签页区域和sidebar子导航
+        document.getElementById('analysisSubtabsSection')?.classList.remove('hidden');
+        showSidebarSubnav();
+
+        // 处理用户画像数据
+        processUserProfileData();
+
+    } catch (err) {
+        console.error('加载数据失败:', err);
+        alert('加载数据失败: ' + err.message);
+    } finally {
+        if (loadBtn) {
+            loadBtn.disabled = false;
+            loadBtn.innerHTML = '<span>📊</span> 加载选中日期数据';
+        }
+    }
+}
+
+// 加载全部数据
+async function loadAllData() {
+    const loadBtn = document.getElementById('loadAllDataBtn');
+    if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.innerHTML = '<span>⏳</span> 加载中...';
+    }
+
+    try {
+        // 加载所有日期的数据
+        await Promise.all([
+            loadAllSessionData(),
+            loadAllProductData(),
+            loadAllSeatMapData()
+        ]);
+
+        // 显示子标签页区域和sidebar子导航
+        document.getElementById('analysisSubtabsSection')?.classList.remove('hidden');
+        showSidebarSubnav();
+
+        // 处理用户画像数据
+        processUserProfileData();
+
+    } catch (err) {
+        console.error('加载数据失败:', err);
+        alert('加载数据失败: ' + err.message);
+    } finally {
+        if (loadBtn) {
+            loadBtn.disabled = false;
+            loadBtn.innerHTML = '<span>📂</span> 加载全部数据';
+        }
+    }
+}
+
+// 按日期范围加载座位分布数据
+async function loadSeatMapDataByRange(startDate, endDate) {
+    // 确保 tooltip 已创建
+    createSeatMapTooltip();
+
+    // 计算选定日期范围的总小时数
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    seatMapTotalHours = daysDiff * 24;
+
+    // 从数据库查询上机记录
+    const { data, error } = await db
+        .from('sessions')
+        .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
+        .gte('start_time', `${startDate}T00:00:00Z`)
+        .lte('start_time', `${endDate}T23:59:59Z`);
+
+    if (error) throw error;
+
+    // 处理数据
+    processSeatData(data || []);
+
+    // 显示结果
+    document.getElementById('seatMapStats')?.classList.remove('hidden');
+    document.getElementById('seatMapContainer')?.classList.remove('hidden');
+    document.getElementById('seatMapModeSwitch')?.classList.remove('hidden');
+
+    // 绑定模式切换事件
+    bindModeSwitchEvents();
+}
+
+// 加载全部座位分布数据
+async function loadAllSeatMapData() {
+    if (availableDates.length === 0) {
+        return;
+    }
+
+    const dates = availableDates.map(d => d.date).sort();
+    const startDate = dates[0];
+    const endDate = dates[dates.length - 1];
+
+    await loadSeatMapDataByRange(startDate, endDate);
+}
 
 // 设置标签页切换
 function setupTabs() {
@@ -226,25 +497,17 @@ function calculateRangeStats(startDate, endDate) {
 
 // 设置按钮事件
 function setupButtons() {
-    // 加载选中日期数据
-    document.getElementById('loadSelectedBtn').addEventListener('click', loadSelectedData);
-
-    // 加载全部数据
-    document.getElementById('loadAllBtn').addEventListener('click', loadAllData);
-
-    // 显示上传面板
-    document.getElementById('showUploadBtn').addEventListener('click', () => {
-        document.getElementById('uploadSection').classList.remove('hidden');
-    });
+    // 旧的单独日期选择按钮已移除，统一使用 loadUnifiedDataBtn
+    // 保留上传面板相关按钮
 
     // 关闭上传面板
-    document.getElementById('closeUploadBtn').addEventListener('click', () => {
-        document.getElementById('uploadSection').classList.add('hidden');
+    document.getElementById('closeUploadBtn')?.addEventListener('click', () => {
+        document.getElementById('uploadSection')?.classList.add('hidden');
     });
 
     // 上传按钮
-    document.getElementById('saveToDbBtn').addEventListener('click', saveToDatabase);
-    document.getElementById('previewOnlyBtn').addEventListener('click', previewOnly);
+    document.getElementById('saveToDbBtn')?.addEventListener('click', saveToDatabase);
+    document.getElementById('previewOnlyBtn')?.addEventListener('click', previewOnly);
 }
 
 // 显示/隐藏加载遮罩
@@ -262,22 +525,23 @@ async function loadSelectedData() {
         alert('请先选择日期');
         return;
     }
+    await loadDataByDateRange(selectedDateRange.start, selectedDateRange.end);
+}
 
-    showLoading(true);
-
+// 按日期范围加载上机数据
+async function loadDataByDateRange(startDate, endDate) {
     try {
         const { data, error } = await db
             .from('sessions')
             .select('*')
-            .gte('start_time', selectedDateRange.start + 'T00:00:00')
-            .lte('start_time', selectedDateRange.end + 'T23:59:59')
+            .gte('start_time', startDate + 'T00:00:00')
+            .lte('start_time', endDate + 'T23:59:59')
             .order('start_time', { ascending: false });
 
         if (error) throw error;
 
         if (data.length === 0) {
-            alert('选中日期范围内没有数据');
-            showLoading(false);
+            console.log('选中日期范围内没有上机数据');
             return;
         }
 
@@ -285,16 +549,13 @@ async function loadSelectedData() {
         processData();
         renderDashboard();
     } catch (err) {
-        alert('加载失败: ' + err.message);
-    } finally {
-        showLoading(false);
+        console.error('加载上机数据失败:', err);
+        throw err;
     }
 }
 
-// 加载全部数据
-async function loadAllData() {
-    showLoading(true);
-
+// 加载全部上机数据
+async function loadAllSessionData() {
     try {
         const { data, error } = await db
             .from('sessions')
@@ -304,8 +565,7 @@ async function loadAllData() {
         if (error) throw error;
 
         if (data.length === 0) {
-            alert('数据库中没有数据，请先上传');
-            showLoading(false);
+            console.log('数据库中没有上机数据');
             return;
         }
 
@@ -313,9 +573,8 @@ async function loadAllData() {
         processData();
         renderDashboard();
     } catch (err) {
-        alert('加载失败: ' + err.message);
-    } finally {
-        showLoading(false);
+        console.error('加载上机数据失败:', err);
+        throw err;
     }
 }
 
@@ -508,9 +767,9 @@ async function saveToDatabase() {
     await loadAvailableDates();
 
     // 刷新日历显示
-    if (datePickerInstance) {
-        datePickerInstance.destroy();
-        initDatePicker();
+    if (unifiedDatePickerInstance) {
+        unifiedDatePickerInstance.destroy();
+        initUnifiedDatePicker();
     }
 
     setTimeout(() => {
@@ -1003,6 +1262,854 @@ function handleResize() {
     });
 }
 
+// ===== 用户画像相关函数 =====
+
+let userProfileData = {};
+let allUsersMap = {}; // 存储所有用户详细数据，key为用户ID
+let usersBySegment = {}; // 存储按RFM分层的用户列表
+
+// 处理用户画像数据
+function processUserProfileData() {
+    if (rawData.length === 0) return;
+
+    // 按用户分组统计
+    const userStats = {};
+    const userRecords = {}; // 存储每个用户的消费记录
+
+    rawData.forEach(row => {
+        const userId = row['卡号'];
+        const name = row['姓名'];
+        if (!userId) return;
+
+        if (!userStats[userId]) {
+            userStats[userId] = {
+                name: name || '未知',
+                cardType: row['卡类型'],
+                age: row.age,
+                sessions: 0,
+                totalSpend: 0,
+                principalSpend: 0,
+                bonusSpend: 0,
+                firstVisit: row.startTime,
+                lastVisit: row.startTime,
+                hours: {},
+                areas: {},
+                machines: []
+            };
+            userRecords[userId] = [];
+        }
+
+        userStats[userId].sessions++;
+        const principal = parseFloat(row['扣除本金']) || 0;
+        const bonus = parseFloat(row['扣除赠送']) || 0;
+        userStats[userId].totalSpend += principal + bonus;
+        userStats[userId].principalSpend += principal;
+        userStats[userId].bonusSpend += bonus;
+
+        // 记录区域偏好
+        const area = row['区域'] || '未知';
+        userStats[userId].areas[area] = (userStats[userId].areas[area] || 0) + 1;
+
+        // 记录机器
+        if (row['机器'] && !userStats[userId].machines.includes(row['机器'])) {
+            userStats[userId].machines.push(row['机器']);
+        }
+
+        // 保存消费记录
+        userRecords[userId].push({
+            date: row.startTime ? formatDate(row.startTime) : '-',
+            time: row.startTime ? `${row.startTime.getHours()}:${String(row.startTime.getMinutes()).padStart(2, '0')}` : '-',
+            area: area,
+            machine: row['机器'] || '-',
+            spend: (principal + bonus).toFixed(2),
+            duration: row['上机时间.1'] || '-'
+        });
+
+        if (row.startTime) {
+            if (row.startTime < userStats[userId].firstVisit) {
+                userStats[userId].firstVisit = row.startTime;
+            }
+            if (row.startTime > userStats[userId].lastVisit) {
+                userStats[userId].lastVisit = row.startTime;
+            }
+
+            // 统计活跃时段（按上机时间段计算，而不只是开始时间）
+            const startHour = row.startTime.getHours();
+            if (row.endTime) {
+                // 计算从开始到结束经过的所有小时
+                let currentTime = new Date(row.startTime);
+                const endTime = new Date(row.endTime);
+
+                while (currentTime < endTime) {
+                    const hour = currentTime.getHours();
+                    userStats[userId].hours[hour] = (userStats[userId].hours[hour] || 0) + 1;
+                    // 移动到下一个小时
+                    currentTime.setHours(currentTime.getHours() + 1);
+                    currentTime.setMinutes(0);
+                    currentTime.setSeconds(0);
+                }
+            } else {
+                // 如果没有结束时间，只统计开始时间
+                userStats[userId].hours[startHour] = (userStats[userId].hours[startHour] || 0) + 1;
+            }
+        }
+    });
+
+    // 存储所有用户详细数据和消费记录
+    allUsersMap = {};
+    Object.entries(userStats).forEach(([id, data]) => {
+        allUsersMap[id] = {
+            ...data,
+            id,
+            records: userRecords[id] || []
+        };
+    });
+
+    const users = Object.entries(userStats).map(([id, data]) => ({
+        id,
+        ...data
+    }));
+
+    // 计算统计数据
+    const totalUsers = users.length;
+    const totalSessions = rawData.length;
+    const totalRevenue = users.reduce((sum, u) => sum + u.totalSpend, 0);
+
+    // 新用户（只来过1次的）
+    const newUsers = users.filter(u => u.sessions === 1).length;
+
+    // 复购用户（来过2次以上的）
+    const repeatUsers = users.filter(u => u.sessions >= 2).length;
+    const repeatRate = totalUsers > 0 ? (repeatUsers / totalUsers * 100) : 0;
+
+    // 人均消费
+    const avgSpendPerUser = totalUsers > 0 ? totalRevenue / totalUsers : 0;
+
+    // 会员类型分布
+    const memberTypeDistribution = {};
+    users.forEach(u => {
+        const type = u.cardType || '未知';
+        memberTypeDistribution[type] = (memberTypeDistribution[type] || 0) + 1;
+    });
+
+    // 年龄分布
+    const ageDistribution = {
+        '18岁以下': 0,
+        '18-22岁': 0,
+        '22-25岁': 0,
+        '25-30岁': 0,
+        '30-40岁': 0,
+        '40岁以上': 0,
+        '未知': 0
+    };
+    users.forEach(u => {
+        const age = u.age;
+        if (!age) ageDistribution['未知']++;
+        else if (age < 18) ageDistribution['18岁以下']++;
+        else if (age < 22) ageDistribution['18-22岁']++;
+        else if (age < 25) ageDistribution['22-25岁']++;
+        else if (age < 30) ageDistribution['25-30岁']++;
+        else if (age < 40) ageDistribution['30-40岁']++;
+        else ageDistribution['40岁以上']++;
+    });
+
+    // 消费频次分布
+    const frequencyDistribution = {
+        '1次': 0,
+        '2-3次': 0,
+        '4-5次': 0,
+        '6-10次': 0,
+        '11-20次': 0,
+        '20次以上': 0
+    };
+    users.forEach(u => {
+        const sessions = u.sessions;
+        if (sessions === 1) frequencyDistribution['1次']++;
+        else if (sessions <= 3) frequencyDistribution['2-3次']++;
+        else if (sessions <= 5) frequencyDistribution['4-5次']++;
+        else if (sessions <= 10) frequencyDistribution['6-10次']++;
+        else if (sessions <= 20) frequencyDistribution['11-20次']++;
+        else frequencyDistribution['20次以上']++;
+    });
+
+    // 消费金额分布
+    const spendDistribution = {
+        '¥0-50': 0,
+        '¥50-100': 0,
+        '¥100-200': 0,
+        '¥200-500': 0,
+        '¥500-1000': 0,
+        '¥1000以上': 0
+    };
+    users.forEach(u => {
+        const spend = u.totalSpend;
+        if (spend < 50) spendDistribution['¥0-50']++;
+        else if (spend < 100) spendDistribution['¥50-100']++;
+        else if (spend < 200) spendDistribution['¥100-200']++;
+        else if (spend < 500) spendDistribution['¥200-500']++;
+        else if (spend < 1000) spendDistribution['¥500-1000']++;
+        else spendDistribution['¥1000以上']++;
+    });
+
+    // 活跃时段分布（聚合所有用户）
+    const activeHours = Array(24).fill(0);
+    users.forEach(u => {
+        Object.entries(u.hours).forEach(([hour, count]) => {
+            activeHours[parseInt(hour)] += count;
+        });
+    });
+
+    // TOP消费金额用户
+    const topSpendUsers = [...users]
+        .sort((a, b) => b.totalSpend - a.totalSpend)
+        .slice(0, 20);
+
+    // TOP消费频次用户
+    const topFreqUsers = [...users]
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 20);
+
+    // 用户价值分层 (简化的RFM模型)
+    const rfmSegments = {
+        '高价值用户': 0,      // 高频高消费
+        '潜力用户': 0,        // 中频中消费
+        '新用户': 0,          // 低频低消费但近期活跃
+        '流失风险用户': 0,    // 之前高频但近期不活跃
+        '普通用户': 0         // 其他
+    };
+
+    // 重置分层用户列表
+    usersBySegment = {
+        '高价值用户': [],
+        '潜力用户': [],
+        '新用户': [],
+        '流失风险用户': [],
+        '普通用户': []
+    };
+
+    const now = new Date();
+    const avgSessions = totalSessions / totalUsers;
+    const avgSpend = totalRevenue / totalUsers;
+
+    users.forEach(u => {
+        const daysSinceLastVisit = (now - u.lastVisit) / (1000 * 60 * 60 * 24);
+        const isRecent = daysSinceLastVisit < 30;
+        const isHighFreq = u.sessions > avgSessions * 1.5;
+        const isHighSpend = u.totalSpend > avgSpend * 1.5;
+
+        let segment = '普通用户';
+        if (isHighFreq && isHighSpend) {
+            segment = '高价值用户';
+        } else if (u.sessions >= 3 && u.totalSpend >= avgSpend * 0.8) {
+            segment = '潜力用户';
+        } else if (u.sessions === 1 && isRecent) {
+            segment = '新用户';
+        } else if (isHighFreq && !isRecent) {
+            segment = '流失风险用户';
+        }
+
+        rfmSegments[segment]++;
+        usersBySegment[segment].push(u);
+    });
+
+    userProfileData = {
+        totalUsers,
+        newUsers,
+        repeatRate,
+        avgSpendPerUser,
+        memberTypeDistribution,
+        ageDistribution,
+        frequencyDistribution,
+        spendDistribution,
+        activeHours,
+        topSpendUsers,
+        topFreqUsers,
+        rfmSegments
+    };
+}
+
+// 渲染用户画像
+function renderUserProfile() {
+    if (Object.keys(userProfileData).length === 0) {
+        processUserProfileData();
+    }
+
+    if (Object.keys(userProfileData).length === 0) return;
+
+    // 显示统计卡片和图表区域
+    document.getElementById('userProfileStats')?.classList.remove('hidden');
+    document.getElementById('userProfileChartsSection')?.classList.remove('hidden');
+
+    // 更新统计卡片
+    document.getElementById('userTotalCount').textContent = userProfileData.totalUsers.toLocaleString();
+    document.getElementById('userNewCount').textContent = userProfileData.newUsers.toLocaleString();
+    document.getElementById('userRepeatRate').textContent = userProfileData.repeatRate.toFixed(1) + '%';
+    document.getElementById('userAvgSpend').textContent = '¥' + userProfileData.avgSpendPerUser.toFixed(2);
+
+    // 渲染图表
+    renderUserMemberTypeChart();
+    renderUserAgeDistChart();
+    renderUserFrequencyChart();
+    renderUserSpendDistChart();
+    renderUserActiveHoursChart();
+    renderTopSpendUsersChart();
+    renderTopFreqUsersChart();
+    renderUserRFMChart();
+}
+
+// 会员类型分布图表
+function renderUserMemberTypeChart() {
+    const chartDom = document.getElementById('userMemberTypeChart');
+    if (!chartDom) return;
+    if (charts.userMemberType) charts.userMemberType.dispose();
+    charts.userMemberType = echarts.init(chartDom);
+
+    const data = Object.entries(userProfileData.memberTypeDistribution)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+        legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: '#a0aec0' } },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['35%', '50%'],
+            avoidLabelOverlap: false,
+            itemStyle: { borderRadius: 10, borderColor: '#1a1a2e', borderWidth: 2 },
+            label: { show: false },
+            labelLine: { show: false },
+            data: data
+        }]
+    };
+    charts.userMemberType.setOption(option);
+}
+
+// 年龄分布图表
+function renderUserAgeDistChart() {
+    const chartDom = document.getElementById('userAgeDistChart');
+    if (!chartDom) return;
+    if (charts.userAgeDist) charts.userAgeDist.dispose();
+    charts.userAgeDist = echarts.init(chartDom);
+
+    const labels = Object.keys(userProfileData.ageDistribution).filter(k => k !== '未知');
+    const values = labels.map(k => userProfileData.ageDistribution[k]);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', formatter: '{b}<br/>用户数: {c}人' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: labels, axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        series: [{
+            type: 'bar',
+            data: values,
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#ff00aa' }, { offset: 1, color: '#667eea' }] } }
+        }]
+    };
+    charts.userAgeDist.setOption(option);
+}
+
+// 消费频次分布图表
+function renderUserFrequencyChart() {
+    const chartDom = document.getElementById('userFrequencyChart');
+    if (!chartDom) return;
+    if (charts.userFrequency) charts.userFrequency.dispose();
+    charts.userFrequency = echarts.init(chartDom);
+
+    const data = Object.entries(userProfileData.frequencyDistribution)
+        .map(([name, value]) => ({ name, value }));
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+        legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: '#a0aec0' } },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['35%', '50%'],
+            roseType: 'radius',
+            itemStyle: { borderRadius: 5 },
+            label: { show: false },
+            data: data
+        }]
+    };
+    charts.userFrequency.setOption(option);
+}
+
+// 消费金额分布图表
+function renderUserSpendDistChart() {
+    const chartDom = document.getElementById('userSpendDistChart');
+    if (!chartDom) return;
+    if (charts.userSpendDist) charts.userSpendDist.dispose();
+    charts.userSpendDist = echarts.init(chartDom);
+
+    const labels = Object.keys(userProfileData.spendDistribution);
+    const values = labels.map(k => userProfileData.spendDistribution[k]);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', formatter: '{b}<br/>用户数: {c}人' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: labels, axisLabel: { color: '#a0aec0', rotate: 30 }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        series: [{
+            type: 'bar',
+            data: values,
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#48bb78' }, { offset: 1, color: '#38a169' }] } }
+        }]
+    };
+    charts.userSpendDist.setOption(option);
+}
+
+// 活跃时段分布图表
+function renderUserActiveHoursChart() {
+    const chartDom = document.getElementById('userActiveHoursChart');
+    if (!chartDom) return;
+    if (charts.userActiveHours) charts.userActiveHours.dispose();
+    charts.userActiveHours = echarts.init(chartDom);
+
+    const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis', formatter: '{b}<br/>上机人次: {c}' },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'category', data: hours, axisLabel: { color: '#a0aec0', interval: 2 }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        yAxis: { type: 'value', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        series: [{
+            type: 'line',
+            data: userProfileData.activeHours,
+            smooth: true,
+            areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(0, 240, 255, 0.3)' }, { offset: 1, color: 'rgba(0, 240, 255, 0)' }] } },
+            itemStyle: { color: '#00f0ff' },
+            lineStyle: { color: '#00f0ff', width: 2 }
+        }]
+    };
+    charts.userActiveHours.setOption(option);
+}
+
+// TOP消费金额用户图表
+function renderTopSpendUsersChart() {
+    const chartDom = document.getElementById('topSpendUsersChart');
+    if (!chartDom) return;
+    if (charts.topSpendUsers) charts.topSpendUsers.dispose();
+    charts.topSpendUsers = echarts.init(chartDom);
+
+    const users = userProfileData.topSpendUsers.slice().reverse();
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: (params) => {
+                const user = users[params[0].dataIndex];
+                return `${user.name}<br/>消费总额: ¥${user.totalSpend.toFixed(2)}<br/>上机次数: ${user.sessions}次<br/><span style="color: #00f0ff;">点击查看详情</span>`;
+            }
+        },
+        grid: { left: '3%', right: '15%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'value', axisLabel: { color: '#a0aec0', formatter: '¥{value}' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        yAxis: { type: 'category', data: users.map(u => u.name), axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        series: [{
+            type: 'bar',
+            data: users.map(u => u.totalSpend.toFixed(2)),
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#ffd700' }, { offset: 1, color: '#ff8c00' }] }, borderRadius: [0, 5, 5, 0] },
+            label: { show: true, position: 'right', formatter: '¥{c}', color: '#a0aec0' }
+        }]
+    };
+    charts.topSpendUsers.setOption(option);
+
+    // 添加点击事件
+    charts.topSpendUsers.on('click', (params) => {
+        const user = users[params.dataIndex];
+        if (user && user.id) {
+            showUserDetailModal(user.id);
+        }
+    });
+}
+
+// TOP消费频次用户图表
+function renderTopFreqUsersChart() {
+    const chartDom = document.getElementById('topFreqUsersChart');
+    if (!chartDom) return;
+    if (charts.topFreqUsers) charts.topFreqUsers.dispose();
+    charts.topFreqUsers = echarts.init(chartDom);
+
+    const users = userProfileData.topFreqUsers.slice().reverse();
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: (params) => {
+                const user = users[params[0].dataIndex];
+                return `${user.name}<br/>上机次数: ${user.sessions}次<br/>消费总额: ¥${user.totalSpend.toFixed(2)}<br/><span style="color: #00f0ff;">点击查看详情</span>`;
+            }
+        },
+        grid: { left: '3%', right: '12%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'value', axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } }, splitLine: { lineStyle: { color: '#2d3748' } } },
+        yAxis: { type: 'category', data: users.map(u => u.name), axisLabel: { color: '#a0aec0' }, axisLine: { lineStyle: { color: '#4a5568' } } },
+        series: [{
+            type: 'bar',
+            data: users.map(u => u.sessions),
+            itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#667eea' }, { offset: 1, color: '#48bb78' }] }, borderRadius: [0, 5, 5, 0] },
+            label: { show: true, position: 'right', formatter: '{c}次', color: '#a0aec0' }
+        }]
+    };
+    charts.topFreqUsers.setOption(option);
+
+    // 添加点击事件
+    charts.topFreqUsers.on('click', (params) => {
+        const user = users[params.dataIndex];
+        if (user && user.id) {
+            showUserDetailModal(user.id);
+        }
+    });
+}
+
+// 用户价值分层图表
+function renderUserRFMChart() {
+    const chartDom = document.getElementById('userRFMChart');
+    if (!chartDom) return;
+    if (charts.userRFM) charts.userRFM.dispose();
+    charts.userRFM = echarts.init(chartDom);
+
+    const data = Object.entries(userProfileData.rfmSegments)
+        .map(([name, value]) => ({ name, value }))
+        .filter(d => d.value > 0);
+
+    const colors = {
+        '高价值用户': '#ffd700',
+        '潜力用户': '#48bb78',
+        '新用户': '#00f0ff',
+        '流失风险用户': '#ff4757',
+        '普通用户': '#667eea'
+    };
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+        legend: { orient: 'horizontal', bottom: '5%', textStyle: { color: '#a0aec0' } },
+        series: [{
+            type: 'pie',
+            radius: ['30%', '60%'],
+            center: ['50%', '45%'],
+            itemStyle: { borderRadius: 10, borderColor: '#1a1a2e', borderWidth: 2 },
+            label: {
+                show: true,
+                formatter: '{b}\n{c}人',
+                color: '#a0aec0'
+            },
+            labelLine: { lineStyle: { color: '#4a5568' } },
+            data: data.map(d => ({
+                ...d,
+                itemStyle: { color: colors[d.name] || '#667eea' }
+            }))
+        }]
+    };
+    charts.userRFM.setOption(option);
+
+    // 添加点击事件 - 更新右侧用户列表
+    charts.userRFM.on('click', (params) => {
+        if (params.name && usersBySegment[params.name]) {
+            updateRFMUserList(params.name, usersBySegment[params.name]);
+        }
+    });
+}
+
+// 更新RFM用户列表面板
+function updateRFMUserList(segment, users) {
+    const titleEl = document.getElementById('rfmUserListTitle');
+    const countEl = document.getElementById('rfmUserCount');
+    const listEl = document.getElementById('rfmUserList');
+
+    if (!listEl) return;
+
+    // 更新标题和数量
+    if (titleEl) titleEl.textContent = segment;
+    if (countEl) countEl.textContent = `${users.length}人`;
+
+    // 按消费金额排序
+    const sortedUsers = [...users].sort((a, b) => b.totalSpend - a.totalSpend);
+
+    // 生成用户列表HTML
+    listEl.innerHTML = sortedUsers.map((user, index) => `
+        <div class="rfm-user-item" onclick="showUserDetailModal('${user.id}')">
+            <div class="rfm-user-item-rank">${index + 1}</div>
+            <div class="rfm-user-item-info">
+                <div class="rfm-user-item-name">${user.name}</div>
+                <div class="rfm-user-item-meta">${user.cardType || '未知'} · ${user.sessions}次</div>
+            </div>
+            <div class="rfm-user-item-value">¥${user.totalSpend.toFixed(0)}</div>
+        </div>
+    `).join('');
+}
+
+// ===== 用户弹窗交互函数 =====
+
+// 显示用户列表弹窗
+function showUserListModal(title, users) {
+    const modal = document.getElementById('userListModal');
+    const modalTitle = document.getElementById('userListModalTitle');
+    const modalBody = document.getElementById('userListModalBody');
+
+    if (!modal || !modalBody) return;
+
+    modalTitle.textContent = `${title} (${users.length}人)`;
+
+    // 按消费金额排序
+    const sortedUsers = [...users].sort((a, b) => b.totalSpend - a.totalSpend);
+
+    modalBody.innerHTML = sortedUsers.map((user, index) => `
+        <div class="user-list-item" onclick="showUserDetailModal('${user.id}')">
+            <div class="user-list-item-rank">${index + 1}</div>
+            <div class="user-list-item-info">
+                <div class="user-list-item-name">${user.name}</div>
+                <div class="user-list-item-meta">${user.cardType || '未知'} · ${user.sessions}次消费</div>
+            </div>
+            <div class="user-list-item-value">¥${user.totalSpend.toFixed(2)}</div>
+        </div>
+    `).join('');
+
+    modal.classList.remove('hidden');
+}
+
+// 关闭用户列表弹窗
+function closeUserListModal() {
+    document.getElementById('userListModal')?.classList.add('hidden');
+}
+
+// 显示用户详情弹窗
+function showUserDetailModal(userId) {
+    const user = allUsersMap[userId];
+    if (!user) return;
+
+    const modal = document.getElementById('userDetailModal');
+    const modalTitle = document.getElementById('userDetailModalTitle');
+    const basicInfo = document.getElementById('userBasicInfo');
+    const spendStats = document.getElementById('userSpendStats');
+    const userRecords = document.getElementById('userRecords');
+
+    if (!modal) return;
+
+    modalTitle.textContent = user.name;
+
+    // 获取最常去的区域
+    const favoriteArea = Object.entries(user.areas || {})
+        .sort((a, b) => b[1] - a[1])[0];
+
+    // 获取最活跃的时段
+    const favoriteHour = Object.entries(user.hours || {})
+        .sort((a, b) => b[1] - a[1])[0];
+
+    // 基本信息
+    basicInfo.innerHTML = `
+        <div class="user-detail-item">
+            <span class="user-detail-label">会员类型</span>
+            <span class="user-detail-value">${user.cardType || '未知'}</span>
+        </div>
+        <div class="user-detail-item">
+            <span class="user-detail-label">年龄</span>
+            <span class="user-detail-value">${user.age ? user.age + '岁' : '未知'}</span>
+        </div>
+        <div class="user-detail-item">
+            <span class="user-detail-label">首次消费</span>
+            <span class="user-detail-value">${user.firstVisit ? formatDate(user.firstVisit) : '-'}</span>
+        </div>
+        <div class="user-detail-item">
+            <span class="user-detail-label">最近消费</span>
+            <span class="user-detail-value">${user.lastVisit ? formatDate(user.lastVisit) : '-'}</span>
+        </div>
+    `;
+
+    // 消费统计
+    const avgPerVisit = user.sessions > 0 ? user.totalSpend / user.sessions : 0;
+    spendStats.innerHTML = `
+        <div class="user-stat-card">
+            <div class="user-stat-value">${user.sessions}</div>
+            <div class="user-stat-label">消费次数</div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-value">¥${user.totalSpend.toFixed(0)}</div>
+            <div class="user-stat-label">总消费</div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-value">¥${avgPerVisit.toFixed(0)}</div>
+            <div class="user-stat-label">次均消费</div>
+        </div>
+        <div class="user-stat-card">
+            <div class="user-stat-value">${user.machines?.length || 0}</div>
+            <div class="user-stat-label">使用机器数</div>
+        </div>
+    `;
+
+    // 消费记录
+    const records = user.records || [];
+    const recentRecords = records.slice(0, 10); // 只显示最近10条
+
+    userRecords.innerHTML = `
+        <div class="user-record-item">
+            <span>日期</span>
+            <span>区域/机器</span>
+            <span>时长</span>
+            <span>消费</span>
+        </div>
+        ${recentRecords.map(r => `
+            <div class="user-record-item">
+                <span>${r.date}</span>
+                <span>${r.area}/${r.machine}</span>
+                <span>${r.duration}</span>
+                <span>¥${r.spend}</span>
+            </div>
+        `).join('')}
+        ${records.length > 10 ? `<div style="text-align: center; color: var(--text-muted); padding: 10px;">还有 ${records.length - 10} 条记录...</div>` : ''}
+    `;
+
+    modal.classList.remove('hidden');
+
+    // 延迟渲染图表（确保modal已显示）
+    setTimeout(() => {
+        renderUserHourPreferenceChart(user);
+        renderUserAreaPreferenceChart(user);
+    }, 100);
+}
+
+// 渲染用户上机时间偏好图表
+function renderUserHourPreferenceChart(user) {
+    const chartDom = document.getElementById('userHourPreferenceChart');
+    if (!chartDom) return;
+
+    if (charts.userHourPreference) charts.userHourPreference.dispose();
+    charts.userHourPreference = echarts.init(chartDom);
+
+    // 生成24小时数据
+    const hourData = Array(24).fill(0);
+    Object.entries(user.hours || {}).forEach(([hour, count]) => {
+        hourData[parseInt(hour)] = count;
+    });
+
+    const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            formatter: '{b}<br/>上机次数: {c}次'
+        },
+        grid: { left: '8%', right: '5%', top: '15%', bottom: '15%' },
+        xAxis: {
+            type: 'category',
+            data: hours,
+            axisLabel: { color: '#a0aec0', fontSize: 10, interval: 3 },
+            axisLine: { lineStyle: { color: '#4a5568' } }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: { color: '#a0aec0', fontSize: 10 },
+            axisLine: { lineStyle: { color: '#4a5568' } },
+            splitLine: { lineStyle: { color: '#2d3748' } }
+        },
+        series: [{
+            type: 'line',
+            data: hourData,
+            smooth: true,
+            symbol: 'circle',
+            symbolSize: 6,
+            areaStyle: {
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: 'rgba(0, 240, 255, 0.3)' },
+                        { offset: 1, color: 'rgba(0, 240, 255, 0)' }
+                    ]
+                }
+            },
+            itemStyle: { color: '#00f0ff' },
+            lineStyle: { color: '#00f0ff', width: 2 }
+        }]
+    };
+
+    charts.userHourPreference.setOption(option);
+}
+
+// 渲染用户区域偏好图表
+function renderUserAreaPreferenceChart(user) {
+    const chartDom = document.getElementById('userAreaPreferenceChart');
+    if (!chartDom) return;
+
+    if (charts.userAreaPreference) charts.userAreaPreference.dispose();
+    charts.userAreaPreference = echarts.init(chartDom);
+
+    const areaData = Object.entries(user.areas || {})
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    if (areaData.length === 0) {
+        chartDom.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">暂无区域数据</div>';
+        return;
+    }
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'item',
+            formatter: '{b}: {c}次 ({d}%)'
+        },
+        series: [{
+            type: 'pie',
+            radius: ['35%', '65%'],
+            center: ['50%', '50%'],
+            avoidLabelOverlap: true,
+            itemStyle: {
+                borderRadius: 6,
+                borderColor: '#1a1a2e',
+                borderWidth: 2
+            },
+            label: {
+                show: true,
+                formatter: '{b}\n{c}次',
+                fontSize: 10,
+                color: '#a0aec0'
+            },
+            labelLine: {
+                lineStyle: { color: '#4a5568' }
+            },
+            data: areaData.map((d, i) => ({
+                ...d,
+                itemStyle: {
+                    color: ['#00f0ff', '#ff00aa', '#667eea', '#48bb78', '#ffd700'][i % 5]
+                }
+            }))
+        }]
+    };
+
+    charts.userAreaPreference.setOption(option);
+}
+
+// 关闭用户详情弹窗
+function closeUserDetailModal() {
+    document.getElementById('userDetailModal')?.classList.add('hidden');
+}
+
+// 初始化用户弹窗事件
+function setupUserModals() {
+    // 关闭按钮事件
+    document.getElementById('closeUserListModal')?.addEventListener('click', closeUserListModal);
+    document.getElementById('closeUserDetailModal')?.addEventListener('click', closeUserDetailModal);
+
+    // 点击遮罩层关闭
+    document.getElementById('userListModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'userListModal') closeUserListModal();
+    });
+    document.getElementById('userDetailModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'userDetailModal') closeUserDetailModal();
+    });
+}
+
 // ===== 商品数据相关函数 =====
 
 // 加载商品有数据的日期列表
@@ -1122,20 +2229,15 @@ function calculateProductRangeStats(startDate, endDate) {
 
 // 设置商品按钮事件
 function setupProductButtons() {
-    document.getElementById('loadProductBtn').addEventListener('click', loadSelectedProductData);
-    document.getElementById('loadAllProductBtn').addEventListener('click', loadAllProductData);
+    // 旧的单独日期选择按钮已移除，统一使用 loadUnifiedDataBtn
+    // 保留上传面板相关按钮
 
-    document.getElementById('showProductUploadBtn').addEventListener('click', () => {
-        document.getElementById('productUploadSection').classList.remove('hidden');
-        initProductUploadDatePicker();
+    document.getElementById('closeProductUploadBtn')?.addEventListener('click', () => {
+        document.getElementById('productUploadSection')?.classList.add('hidden');
     });
 
-    document.getElementById('closeProductUploadBtn').addEventListener('click', () => {
-        document.getElementById('productUploadSection').classList.add('hidden');
-    });
-
-    document.getElementById('saveProductBtn').addEventListener('click', saveProductToDatabase);
-    document.getElementById('previewProductBtn').addEventListener('click', previewProductOnly);
+    document.getElementById('saveProductBtn')?.addEventListener('click', saveProductToDatabase);
+    document.getElementById('previewProductBtn')?.addEventListener('click', previewProductOnly);
 }
 
 // 设置同步按钮事件（同步页面的按钮事件）
@@ -1173,10 +2275,6 @@ async function clearAllProductData() {
 
         // 刷新日期数据
         await loadProductAvailableDates();
-        if (productDatePickerInstance) {
-            productDatePickerInstance.destroy();
-            initProductDatePicker();
-        }
 
         // 同时刷新同步面板的日期选择器
         if (syncDatePickerInstance) {
@@ -1414,10 +2512,6 @@ async function startApiSync() {
 
         // 刷新商品日期数据
         await loadProductAvailableDates();
-        if (productDatePickerInstance) {
-            productDatePickerInstance.destroy();
-            initProductDatePicker();
-        }
 
     } catch (error) {
         progressText.textContent = '同步失败';
@@ -1472,9 +2566,9 @@ async function clearAllSessionData() {
 
         // 刷新日期数据
         await loadAvailableDates();
-        if (datePickerInstance) {
-            datePickerInstance.destroy();
-            initDatePicker();
+        if (unifiedDatePickerInstance) {
+            unifiedDatePickerInstance.destroy();
+            initUnifiedDatePicker();
         }
 
         // 刷新同步面板的日期选择器
@@ -1712,9 +2806,9 @@ async function startSessionApiSync() {
 
         // 刷新日期数据
         await loadAvailableDates();
-        if (datePickerInstance) {
-            datePickerInstance.destroy();
-            initDatePicker();
+        if (unifiedDatePickerInstance) {
+            unifiedDatePickerInstance.destroy();
+            initUnifiedDatePicker();
         }
 
     } catch (error) {
@@ -1728,6 +2822,269 @@ async function startSessionApiSync() {
     } finally {
         startBtn.disabled = false;
     }
+}
+
+// =====================================================
+// 统一数据同步功能
+// =====================================================
+
+// 初始化统一同步日期选择器
+function initUnifiedSyncDatePicker() {
+    // 默认选择最近 7 天，但最新日期为昨天
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(yesterday);
+    weekAgo.setDate(weekAgo.getDate() - 6);
+
+    // 合并上机数据和商品数据的已有日期
+    const sessionDates = availableDates.map(d => d.date);
+    const productDates = productAvailableDates.map(d => d.date);
+    const allDatesToMark = [...new Set([...sessionDates, ...productDates])];
+
+    // 开始日期选择器
+    flatpickr('#unifiedSyncStartDate', {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        defaultDate: weekAgo,
+        maxDate: yesterday,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (allDatesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                dayElem.title = '已有数据';
+            }
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                unifiedSyncDateRange.start = formatDate(selectedDates[0]);
+                updateUnifiedSyncButtonState();
+            }
+        }
+    });
+
+    // 结束日期选择器
+    flatpickr('#unifiedSyncEndDate', {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        defaultDate: yesterday,
+        maxDate: yesterday,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (allDatesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+                dayElem.title = '已有数据';
+            }
+        },
+        onChange: function(selectedDates) {
+            if (selectedDates.length > 0) {
+                unifiedSyncDateRange.end = formatDate(selectedDates[0]);
+                updateUnifiedSyncButtonState();
+            }
+        }
+    });
+
+    // 设置默认值
+    unifiedSyncDateRange = {
+        start: formatDate(weekAgo),
+        end: formatDate(yesterday)
+    };
+    updateUnifiedSyncButtonState();
+
+    // 初始化删除日期选择器
+    initSessionDeleteDatePickers();
+    initProductDeleteDatePickers();
+
+    // 绑定删除按钮事件
+    setupSessionDeleteButtons();
+    setupProductDeleteButtons();
+
+    // 绑定统一同步按钮事件
+    const syncBtn = document.getElementById('startUnifiedSyncBtn');
+    if (syncBtn && !syncBtn._listenerAdded) {
+        syncBtn.addEventListener('click', startUnifiedApiSync);
+        syncBtn._listenerAdded = true;
+    }
+}
+
+// 更新统一同步按钮状态
+function updateUnifiedSyncButtonState() {
+    const startBtn = document.getElementById('startUnifiedSyncBtn');
+    if (startBtn) {
+        startBtn.disabled = !(unifiedSyncDateRange.start && unifiedSyncDateRange.end);
+    }
+}
+
+// 开始统一 API 同步（先上机数据，再商品销售）
+async function startUnifiedApiSync() {
+    if (!unifiedSyncDateRange.start || !unifiedSyncDateRange.end) {
+        alert('请先选择同步日期范围');
+        return;
+    }
+
+    const startBtn = document.getElementById('startUnifiedSyncBtn');
+    const progressDiv = document.getElementById('unifiedSyncProgress');
+    const resultDiv = document.getElementById('unifiedSyncResult');
+
+    const sessionStep = document.getElementById('sessionSyncStep');
+    const sessionStatus = document.getElementById('sessionSyncStatus');
+    const sessionProgressFill = document.getElementById('sessionSyncProgressFill');
+    const sessionProgressText = document.getElementById('sessionSyncProgressText');
+
+    const productStep = document.getElementById('productSyncStep');
+    const productStatus = document.getElementById('productSyncStatus');
+    const productProgressFill = document.getElementById('productSyncProgressFill');
+    const productProgressText = document.getElementById('productSyncProgressText');
+
+    startBtn.disabled = true;
+    progressDiv.classList.remove('hidden');
+    resultDiv.classList.add('hidden');
+
+    // 重置状态
+    sessionStep.className = 'sync-step';
+    productStep.className = 'sync-step';
+    sessionProgressFill.style.width = '0%';
+    productProgressFill.style.width = '0%';
+    sessionProgressText.textContent = '';
+    productProgressText.textContent = '';
+    sessionStatus.textContent = '等待中';
+    productStatus.textContent = '等待中';
+
+    let sessionResult = { success: false, records: 0, days: 0 };
+    let productResult = { success: false, records: 0, days: 0 };
+
+    try {
+        // ========== 第一阶段：同步上机数据 ==========
+        sessionStep.className = 'sync-step active';
+        sessionStatus.textContent = '同步中';
+
+        const allDates = generateDateRange(unifiedSyncDateRange.start, unifiedSyncDateRange.end);
+        const sessionDatesToSync = allDates.filter(date => !hasSessionDataForDate(date));
+
+        if (sessionDatesToSync.length === 0) {
+            sessionProgressFill.style.width = '100%';
+            sessionProgressText.textContent = '所有日期已有数据，跳过';
+            sessionStatus.textContent = '已跳过';
+            sessionStep.className = 'sync-step completed';
+            sessionResult.success = true;
+        } else {
+            sessionProgressText.textContent = '正在登录...';
+            const token = await login();
+
+            let totalRecords = 0;
+            let syncedDays = 0;
+
+            for (let i = 0; i < sessionDatesToSync.length; i++) {
+                const date = sessionDatesToSync[i];
+                sessionProgressText.textContent = `同步 ${date}... (${i + 1}/${sessionDatesToSync.length})`;
+                sessionProgressFill.style.width = `${((i + 1) / sessionDatesToSync.length) * 100}%`;
+
+                const startTime = dateToTimestamp(date, false);
+                const endTime = dateToTimestamp(date, true);
+                const records = await fetchAllSessions(token, startTime, endTime);
+
+                if (records.length > 0) {
+                    const sessions = transformSessionRecords(records);
+                    const saved = await saveSessionsToSupabase(sessions, date);
+                    totalRecords += saved;
+                    syncedDays++;
+                }
+            }
+
+            sessionProgressFill.style.width = '100%';
+            sessionProgressText.textContent = `完成: ${totalRecords} 条记录, ${syncedDays} 天`;
+            sessionStatus.textContent = '完成';
+            sessionStep.className = 'sync-step completed';
+            sessionResult = { success: true, records: totalRecords, days: syncedDays };
+        }
+
+        // ========== 第二阶段：同步商品销售数据 ==========
+        productStep.className = 'sync-step active';
+        productStatus.textContent = '同步中';
+
+        const productDatesToSync = allDates.filter(date => !hasDataForDate(date));
+
+        if (productDatesToSync.length === 0) {
+            productProgressFill.style.width = '100%';
+            productProgressText.textContent = '所有日期已有数据，跳过';
+            productStatus.textContent = '已跳过';
+            productStep.className = 'sync-step completed';
+            productResult.success = true;
+        } else {
+            productProgressText.textContent = '正在登录...';
+            const token = await loginForProducts();
+
+            let totalProducts = 0;
+            let syncedDays = 0;
+
+            for (let i = 0; i < productDatesToSync.length; i++) {
+                const date = productDatesToSync[i];
+                productProgressText.textContent = `同步 ${date}... (${i + 1}/${productDatesToSync.length})`;
+                productProgressFill.style.width = `${((i + 1) / productDatesToSync.length) * 100}%`;
+
+                const orders = await fetchAllSales(token, date, date);
+
+                if (orders.length > 0) {
+                    const products = transformOrdersToProducts(orders, date);
+                    const saved = await saveToSupabase(products, date);
+                    totalProducts += saved;
+                    syncedDays++;
+                }
+            }
+
+            productProgressFill.style.width = '100%';
+            productProgressText.textContent = `完成: ${totalProducts} 条记录, ${syncedDays} 天`;
+            productStatus.textContent = '完成';
+            productStep.className = 'sync-step completed';
+            productResult = { success: true, records: totalProducts, days: syncedDays };
+        }
+
+        // 显示结果
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result success';
+        resultDiv.innerHTML = `
+            <h3>同步完成</h3>
+            <p>日期范围: ${unifiedSyncDateRange.start} 至 ${unifiedSyncDateRange.end}</p>
+            <p>上机数据: ${sessionResult.records} 条记录 (${sessionResult.days} 天)</p>
+            <p>商品销售: ${productResult.records} 条记录 (${productResult.days} 天)</p>
+        `;
+
+        // 刷新日期数据
+        await Promise.all([loadAvailableDates(), loadProductAvailableDates()]);
+        if (unifiedDatePickerInstance) {
+            unifiedDatePickerInstance.destroy();
+            initUnifiedDatePicker();
+        }
+
+    } catch (error) {
+        console.error('同步失败:', error);
+
+        // 标记当前步骤为错误
+        if (sessionStep.classList.contains('active')) {
+            sessionStep.className = 'sync-step error';
+            sessionStatus.textContent = '失败';
+            sessionProgressText.textContent = error.message;
+        } else if (productStep.classList.contains('active')) {
+            productStep.className = 'sync-step error';
+            productStatus.textContent = '失败';
+            productProgressText.textContent = error.message;
+        }
+
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'sync-result error';
+        resultDiv.innerHTML = `
+            <h3>同步失败</h3>
+            <p>${error.message}</p>
+        `;
+    } finally {
+        startBtn.disabled = false;
+    }
+}
+
+// 商品同步登录（使用 sync-products.js 中的 login 函数）
+async function loginForProducts() {
+    // 直接使用 sync-products.js 中的 login 函数
+    return await login();
 }
 
 // 初始化商品上传日期选择器
@@ -1957,10 +3314,6 @@ async function saveProductToDatabase() {
 
     // 刷新日期数据
     await loadProductAvailableDates();
-    if (productDatePickerInstance) {
-        productDatePickerInstance.destroy();
-        initProductDatePicker();
-    }
 
     setTimeout(() => {
         progressDiv.classList.add('hidden');
@@ -2000,22 +3353,23 @@ async function loadSelectedProductData() {
         alert('请先选择日期');
         return;
     }
+    await loadProductDataByDateRange(selectedProductDateRange.start, selectedProductDateRange.end);
+}
 
-    showLoading(true);
-
+// 按日期范围加载商品数据
+async function loadProductDataByDateRange(startDate, endDate) {
     try {
         const { data, error } = await db
             .from('product_sales')
             .select('*')
-            .gte('sale_date', selectedProductDateRange.start)
-            .lte('sale_date', selectedProductDateRange.end)
+            .gte('sale_date', startDate)
+            .lte('sale_date', endDate)
             .order('sale_date', { ascending: false });
 
         if (error) throw error;
 
         if (data.length === 0) {
-            alert('选中日期范围内没有商品数据');
-            showLoading(false);
+            console.log('选中日期范围内没有商品数据');
             return;
         }
 
@@ -2023,16 +3377,13 @@ async function loadSelectedProductData() {
         processProductData();
         renderProductDashboard();
     } catch (err) {
-        alert('加载失败: ' + err.message);
-    } finally {
-        showLoading(false);
+        console.error('加载商品数据失败:', err);
+        throw err;
     }
 }
 
 // 加载全部商品数据
 async function loadAllProductData() {
-    showLoading(true);
-
     try {
         const { data, error } = await db
             .from('product_sales')
@@ -2042,8 +3393,7 @@ async function loadAllProductData() {
         if (error) throw error;
 
         if (data.length === 0) {
-            alert('数据库中没有商品数据，请先上传');
-            showLoading(false);
+            console.log('数据库中没有商品数据');
             return;
         }
 
@@ -2051,9 +3401,8 @@ async function loadAllProductData() {
         processProductData();
         renderProductDashboard();
     } catch (err) {
-        alert('加载失败: ' + err.message);
-    } finally {
-        showLoading(false);
+        console.error('加载商品数据失败:', err);
+        throw err;
     }
 }
 
@@ -2732,12 +4081,7 @@ function setupDeleteButtons() {
 // =====================================================
 // SEAT MAP FUNCTIONALITY
 // =====================================================
-
-let seatMapDateRange = { start: null, end: null };
-let seatUsageData = {};
-let seatMapTooltip = null;
-let seatMapDisplayMode = 'count'; // 'count' or 'utilization'
-let seatMapTotalHours = 0; // 选定日期范围的总小时数（每天按24小时计算）
+// 座位分布变量已在文件顶部声明
 
 // 座位区域映射
 const SEAT_ZONES = {
@@ -3267,12 +4611,4 @@ function bindModeSwitchEvents() {
 }
 
 // 在页面加载时初始化座位图
-document.addEventListener('DOMContentLoaded', () => {
-    // 延迟初始化，等待 tab 切换
-    const seatMapLink = document.querySelector('[data-tab="seatMap"]');
-    if (seatMapLink) {
-        seatMapLink.addEventListener('click', () => {
-            setTimeout(initSeatMapDatePicker, 100);
-        });
-    }
-});
+// 座位分布功能已整合到统一数据分析页面

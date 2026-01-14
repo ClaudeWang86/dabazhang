@@ -68,50 +68,61 @@
             <div class="sidebar-section">
                 <div class="sidebar-label">数据分析</div>
                 <nav class="sidebar-nav">
-                    <a href="#" class="sidebar-link active" data-tab="session">
+                    <a href="#" class="sidebar-link active" data-tab="analysis">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2"/>
-                            <path d="M8 21h8M12 17v4"/>
+                            <path d="M3 3v18h18"/>
+                            <path d="M18 17V9"/>
+                            <path d="M13 17V5"/>
+                            <path d="M8 17v-3"/>
                         </svg>
-                        <span>上机数据</span>
+                        <span>数据分析</span>
                     </a>
-                    <a href="#" class="sidebar-link" data-tab="product">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                            <line x1="3" y1="6" x2="21" y2="6"/>
-                            <path d="M16 10a4 4 0 0 1-8 0"/>
-                        </svg>
-                        <span>商品销售</span>
-                    </a>
-                    <a href="#" class="sidebar-link" data-tab="seatMap">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"/>
-                            <rect x="14" y="3" width="7" height="7"/>
-                            <rect x="14" y="14" width="7" height="7"/>
-                            <rect x="3" y="14" width="7" height="7"/>
-                        </svg>
-                        <span>座位分布</span>
-                    </a>
+                    <!-- 数据分析子菜单 - 数据加载后显示 -->
+                    <div class="sidebar-subnav hidden" id="analysisSidebarSubnav">
+                        <a href="#" class="sidebar-sublink active" data-subtab="session">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                            </svg>
+                            <span>上机数据</span>
+                        </a>
+                        <a href="#" class="sidebar-sublink" data-subtab="product">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 0 1-8 0"/>
+                            </svg>
+                            <span>商品销售</span>
+                        </a>
+                        <a href="#" class="sidebar-sublink" data-subtab="seatMap">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/>
+                                <rect x="14" y="3" width="7" height="7"/>
+                                <rect x="14" y="14" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/>
+                            </svg>
+                            <span>座位分布</span>
+                        </a>
+                        <a href="#" class="sidebar-sublink" data-subtab="userProfile">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                            <span>用户画像</span>
+                        </a>
+                    </div>
                 </nav>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-label">同步数据</div>
+                <div class="sidebar-label">数据管理</div>
                 <nav class="sidebar-nav">
-                    <a href="#" class="sidebar-link" data-tab="syncSession">
+                    <a href="#" class="sidebar-link" data-tab="syncData">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="23 4 23 10 17 10"/>
                             <polyline points="1 20 1 14 7 14"/>
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
                         </svg>
-                        <span>上机数据</span>
-                    </a>
-                    <a href="#" class="sidebar-link" data-tab="syncProduct">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"/>
-                            <polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        <span>商品销售</span>
+                        <span>同步数据</span>
                     </a>
                 </nav>
             </div>
@@ -129,11 +140,11 @@
         <main class="main-content">
             <div class="container">
 
-        <!-- ========== 上机数据区域 ========== -->
-        <div class="tab-content active" id="sessionTab">
+        <!-- ========== 统一数据分析区域 ========== -->
+        <div class="tab-content active" id="analysisTab">
 
-        <!-- 日历选择区域 -->
-        <section class="calendar-section" id="calendarSection">
+        <!-- 统一日历选择区域 -->
+        <section class="unified-calendar-section" id="unifiedCalendarSection">
             <div class="calendar-header">
                 <h2>选择日期查看数据</h2>
                 <div class="calendar-legend">
@@ -143,25 +154,62 @@
             </div>
             <div class="calendar-container">
                 <div class="calendar-wrapper">
-                    <input type="text" id="datePicker" placeholder="点击选择日期范围..." readonly>
+                    <input type="text" id="unifiedDatePicker" placeholder="点击选择日期范围..." readonly>
                 </div>
-                <div class="date-info" id="dateInfo">
-                    <div class="selected-range" id="selectedRange">请选择日期</div>
-                    <div class="range-stats" id="rangeStats"></div>
+                <div class="date-info" id="unifiedDateInfo">
+                    <div class="selected-range" id="unifiedSelectedRange">请选择日期</div>
+                    <div class="range-stats" id="unifiedRangeStats"></div>
                 </div>
             </div>
             <div class="calendar-actions">
-                <button class="btn btn-primary" id="loadSelectedBtn" disabled>
+                <button class="btn btn-primary" id="loadUnifiedDataBtn" disabled>
                     <span>📊</span> 加载选中日期数据
                 </button>
-                <button class="btn btn-secondary" id="loadAllBtn">
+                <button class="btn btn-secondary" id="loadAllDataBtn">
                     <span>📂</span> 加载全部数据
-                </button>
-                <button class="btn btn-secondary" id="showUploadBtn">
-                    <span>📤</span> 上传数据
                 </button>
             </div>
         </section>
+
+        <!-- 数据分析子标签页 -->
+        <section class="analysis-subtabs-section hidden" id="analysisSubtabsSection">
+            <div class="analysis-subtabs">
+                <button class="analysis-subtab active" data-subtab="session">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="3" width="20" height="14" rx="2"/>
+                        <path d="M8 21h8M12 17v4"/>
+                    </svg>
+                    <span>上机数据</span>
+                </button>
+                <button class="analysis-subtab" data-subtab="product">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                    <span>商品销售</span>
+                </button>
+                <button class="analysis-subtab" data-subtab="seatMap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                    <span>座位分布</span>
+                </button>
+                <button class="analysis-subtab" data-subtab="userProfile">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                    <span>用户画像</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ========== 上机数据子内容 ========== -->
+        <div class="analysis-subcontent active" id="sessionSubcontent">
 
         <!-- 上传数据面板（默认隐藏） -->
         <section class="upload-section hidden" id="uploadSection">
@@ -307,41 +355,10 @@
             </div>
         </section>
 
-        </div><!-- 结束 sessionTab -->
+        </div><!-- 结束 sessionSubcontent -->
 
-        <!-- ========== 商品销售区域 ========== -->
-        <div class="tab-content" id="productTab">
-
-        <!-- 商品日历选择区域 -->
-        <section class="calendar-section" id="productCalendarSection">
-            <div class="calendar-header">
-                <h2>选择日期查看商品数据</h2>
-                <div class="calendar-legend">
-                    <span class="legend-item"><span class="dot has-data"></span> 有数据</span>
-                    <span class="legend-item"><span class="dot selected"></span> 已选择</span>
-                </div>
-            </div>
-            <div class="calendar-container">
-                <div class="calendar-wrapper">
-                    <input type="text" id="productDatePicker" placeholder="点击选择日期范围..." readonly>
-                </div>
-                <div class="date-info" id="productDateInfo">
-                    <div class="selected-range" id="productSelectedRange">请选择日期</div>
-                    <div class="range-stats" id="productRangeStats"></div>
-                </div>
-            </div>
-            <div class="calendar-actions">
-                <button class="btn btn-primary" id="loadProductBtn" disabled>
-                    <span>📊</span> 加载选中日期数据
-                </button>
-                <button class="btn btn-secondary" id="loadAllProductBtn">
-                    <span>📂</span> 加载全部数据
-                </button>
-                <button class="btn btn-secondary" id="showProductUploadBtn">
-                    <span>📤</span> 上传新数据
-                </button>
-            </div>
-        </section>
+        <!-- ========== 商品销售子内容 ========== -->
+        <div class="analysis-subcontent" id="productSubcontent">
 
         <!-- 商品上传面板 -->
         <section class="upload-section hidden" id="productUploadSection">
@@ -457,180 +474,17 @@
             </div>
         </section>
 
-        </div><!-- 结束 productTab -->
+        </div><!-- 结束 productSubcontent -->
 
-        <!-- ========== 同步上机数据区域 ========== -->
-        <div class="tab-content" id="syncSessionTab">
-            <section class="sync-page">
-                <div class="sync-header">
-                    <h2>从 API 同步上机数据</h2>
-                    <p class="sync-description">从易石系统 API 获取上机记录数据并保存到数据库</p>
-                </div>
-                <div class="date-picker-section">
-                    <label>选择同步日期范围：</label>
-                    <div class="date-range-inputs">
-                        <input type="text" id="sessionSyncStartDate" placeholder="开始日期" readonly>
-                        <span class="date-separator">至</span>
-                        <input type="text" id="sessionSyncEndDate" placeholder="结束日期" readonly>
-                    </div>
-                    <p class="hint">选择要同步的日期范围，数据将从易石 API 获取</p>
-                </div>
-                <div class="sync-actions">
-                    <button class="btn btn-primary" id="startSessionSyncBtn" disabled>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                            <polyline points="23 4 23 10 17 10"/>
-                            <polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        <span>开始同步</span>
-                    </button>
-                </div>
-                <div id="sessionSyncProgress" class="sync-progress hidden">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="sessionSyncProgressFill"></div>
-                    </div>
-                    <div class="progress-text" id="sessionSyncProgressText">准备同步...</div>
-                </div>
-                <div id="sessionSyncResult" class="sync-result hidden"></div>
-
-                <!-- 数据管理区域 -->
-                <div class="data-management-section">
-                    <h3>数据管理</h3>
-                    <p class="hint">删除数据库中已同步的上机数据</p>
-
-                    <div class="delete-options">
-                        <div class="delete-option">
-                            <label>删除指定日期范围：</label>
-                            <div class="date-range-inputs">
-                                <input type="text" id="sessionDeleteStartDate" placeholder="开始日期" readonly>
-                                <span class="date-separator">至</span>
-                                <input type="text" id="sessionDeleteEndDate" placeholder="结束日期" readonly>
-                            </div>
-                            <button class="btn btn-danger" id="deleteSessionRangeBtn" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                </svg>
-                                <span>删除选定日期数据</span>
-                            </button>
-                        </div>
-
-                        <div class="delete-option delete-all">
-                            <label>危险操作：</label>
-                            <button class="btn btn-danger-outline" id="deleteAllSessionBtn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                </svg>
-                                <span>删除所有上机数据</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div><!-- 结束 syncSessionTab -->
-
-        <!-- ========== 同步商品销售区域 ========== -->
-        <div class="tab-content" id="syncProductTab">
-            <section class="sync-page">
-                <div class="sync-header">
-                    <h2>从 API 同步商品销售数据</h2>
-                    <p class="sync-description">从易石系统 API 获取商品销售数据并保存到数据库</p>
-                </div>
-                <div class="date-picker-section">
-                    <label>选择同步日期范围：</label>
-                    <div class="date-range-inputs">
-                        <input type="text" id="productSyncStartDate" placeholder="开始日期" readonly>
-                        <span class="date-separator">至</span>
-                        <input type="text" id="productSyncEndDate" placeholder="结束日期" readonly>
-                    </div>
-                    <p class="hint">选择要同步的日期范围，数据将从易石 API 获取</p>
-                </div>
-                <div class="sync-actions">
-                    <button class="btn btn-primary" id="startProductSyncBtn" disabled>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                            <polyline points="23 4 23 10 17 10"/>
-                            <polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        <span>开始同步</span>
-                    </button>
-                </div>
-                <div id="productSyncProgress" class="sync-progress hidden">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="productSyncProgressFill"></div>
-                    </div>
-                    <div class="progress-text" id="productSyncProgressText">准备同步...</div>
-                </div>
-                <div id="productSyncResult" class="sync-result hidden"></div>
-
-                <!-- 数据管理区域 -->
-                <div class="data-management-section">
-                    <h3>数据管理</h3>
-                    <p class="hint">删除数据库中已同步的商品销售数据</p>
-
-                    <div class="delete-options">
-                        <div class="delete-option">
-                            <label>删除指定日期范围：</label>
-                            <div class="date-range-inputs">
-                                <input type="text" id="productDeleteStartDate" placeholder="开始日期" readonly>
-                                <span class="date-separator">至</span>
-                                <input type="text" id="productDeleteEndDate" placeholder="结束日期" readonly>
-                            </div>
-                            <button class="btn btn-danger" id="deleteProductRangeBtn" disabled>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                    <polyline points="3 6 5 6 21 6"/>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                                </svg>
-                                <span>删除选定日期数据</span>
-                            </button>
-                        </div>
-
-                        <div class="delete-option delete-all">
-                            <label>危险操作：</label>
-                            <button class="btn btn-danger-outline" id="deleteAllProductBtn">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                </svg>
-                                <span>删除所有商品数据</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div><!-- 结束 syncProductTab -->
-
-        <!-- ========== 座位分布区域 ========== -->
-        <div class="tab-content" id="seatMapTab">
+        <!-- ========== 座位分布子内容 ========== -->
+        <div class="analysis-subcontent" id="seatMapSubcontent">
             <section class="seat-map-page">
-                <div class="seat-map-header">
-                    <h2>座位上座分布</h2>
-                    <p class="seat-map-description">查看指定日期范围内各座位的使用情况</p>
-                </div>
-
-                <!-- 日期选择区域 -->
-                <div class="seat-map-date-section">
-                    <label>选择查询日期范围：</label>
-                    <div class="date-range-inputs">
-                        <input type="text" id="seatMapStartDate" placeholder="开始日期" readonly>
-                        <span class="date-separator">至</span>
-                        <input type="text" id="seatMapEndDate" placeholder="结束日期" readonly>
-                    </div>
-                    <div class="seat-map-actions">
-                        <button class="btn btn-primary" id="loadSeatMapBtn" disabled>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            <span>查询上座情况</span>
-                        </button>
-                    </div>
-
-                    <!-- 显示模式切换 -->
-                    <div class="seat-map-mode-switch hidden" id="seatMapModeSwitch">
-                        <span class="mode-label">显示模式：</span>
-                        <div class="mode-tabs">
-                            <button class="mode-tab active" data-mode="count">使用次数</button>
-                            <button class="mode-tab" data-mode="utilization">利用率</button>
-                        </div>
+                <!-- 座位分布模式切换 -->
+                <div class="seat-map-mode-switch hidden" id="seatMapModeSwitch">
+                    <span class="mode-label">显示模式：</span>
+                    <div class="mode-tabs">
+                        <button class="mode-tab active" data-mode="count">使用次数</button>
+                        <button class="mode-tab" data-mode="utilization">利用率</button>
                     </div>
                 </div>
 
@@ -851,7 +705,322 @@
                     </div>
                 </div>
             </section>
-        </div><!-- 结束 seatMapTab -->
+        </div><!-- 结束 seatMapSubcontent -->
+
+        <!-- ========== 用户画像子内容 ========== -->
+        <div class="analysis-subcontent" id="userProfileSubcontent">
+            <section class="user-profile-page">
+                <!-- 用户统计概览卡片 -->
+                <div class="user-profile-stats hidden" id="userProfileStats">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="userTotalCount">-</div>
+                            <div class="stat-label">用户总数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="userNewCount">-</div>
+                            <div class="stat-label">新用户数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🔄</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="userRepeatRate">-</div>
+                            <div class="stat-label">复购率</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💎</div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="userAvgSpend">-</div>
+                            <div class="stat-label">人均消费</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 用户画像图表区域 -->
+                <section class="charts-section hidden" id="userProfileChartsSection">
+                    <!-- 第一行：会员类型和年龄分布 -->
+                    <div class="chart-row">
+                        <div class="chart-container half-width">
+                            <h3>会员类型分布</h3>
+                            <div id="userMemberTypeChart" class="chart"></div>
+                        </div>
+                        <div class="chart-container half-width">
+                            <h3>用户年龄分布</h3>
+                            <div id="userAgeDistChart" class="chart"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第二行：消费频次和消费金额分布 -->
+                    <div class="chart-row">
+                        <div class="chart-container half-width">
+                            <h3>消费频次分布</h3>
+                            <div id="userFrequencyChart" class="chart"></div>
+                        </div>
+                        <div class="chart-container half-width">
+                            <h3>消费金额分布</h3>
+                            <div id="userSpendDistChart" class="chart"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第三行：用户活跃时段 -->
+                    <div class="chart-row">
+                        <div class="chart-container full-width">
+                            <h3>用户活跃时段分布</h3>
+                            <div id="userActiveHoursChart" class="chart"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第四行：TOP用户排行 -->
+                    <div class="chart-row">
+                        <div class="chart-container half-width">
+                            <h3>TOP 20 消费金额用户</h3>
+                            <div id="topSpendUsersChart" class="chart chart-tall"></div>
+                        </div>
+                        <div class="chart-container half-width">
+                            <h3>TOP 20 消费频次用户</h3>
+                            <div id="topFreqUsersChart" class="chart chart-tall"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第五行：用户价值分层 + 用户列表 -->
+                    <div class="chart-row rfm-row">
+                        <div class="chart-container rfm-chart-container">
+                            <h3>用户价值分层 (RFM模型)</h3>
+                            <div id="userRFMChart" class="chart"></div>
+                            <div class="rfm-hint">点击图表查看对应用户列表</div>
+                        </div>
+                        <div class="rfm-user-list-container">
+                            <div class="rfm-user-list-header">
+                                <h3 id="rfmUserListTitle">选择用户分层查看列表</h3>
+                                <span class="rfm-user-count" id="rfmUserCount"></span>
+                            </div>
+                            <div class="rfm-user-list" id="rfmUserList">
+                                <div class="rfm-empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                    <p>点击左侧图表中的分层<br/>查看对应用户列表</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </section>
+        </div><!-- 结束 userProfileSubcontent -->
+
+        <!-- 用户列表弹窗 -->
+        <div class="user-list-modal hidden" id="userListModal">
+            <div class="user-list-modal-content">
+                <div class="user-list-modal-header">
+                    <h3 id="userListModalTitle">用户列表</h3>
+                    <button class="btn-close" id="closeUserListModal">&times;</button>
+                </div>
+                <div class="user-list-modal-body" id="userListModalBody">
+                    <!-- 动态填充用户列表 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户详情弹窗 -->
+        <div class="user-detail-modal hidden" id="userDetailModal">
+            <div class="user-detail-modal-content">
+                <div class="user-detail-modal-header">
+                    <h3 id="userDetailModalTitle">用户详情</h3>
+                    <button class="btn-close" id="closeUserDetailModal">&times;</button>
+                </div>
+                <div class="user-detail-modal-body" id="userDetailModalBody">
+                    <!-- 用户基本信息 + 消费统计 -->
+                    <div class="user-detail-top-row">
+                        <div class="user-detail-section user-detail-info-section">
+                            <h4>基本信息</h4>
+                            <div class="user-detail-grid" id="userBasicInfo">
+                                <!-- 动态填充 -->
+                            </div>
+                        </div>
+                        <div class="user-detail-section user-detail-stats-section">
+                            <h4>消费统计</h4>
+                            <div class="user-detail-stats" id="userSpendStats">
+                                <!-- 动态填充 -->
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 用户偏好图表 -->
+                    <div class="user-detail-charts-row">
+                        <div class="user-detail-section user-detail-chart-section">
+                            <h4>上机时间偏好</h4>
+                            <div id="userHourPreferenceChart" class="user-detail-chart"></div>
+                        </div>
+                        <div class="user-detail-section user-detail-chart-section">
+                            <h4>区域偏好</h4>
+                            <div id="userAreaPreferenceChart" class="user-detail-chart"></div>
+                        </div>
+                    </div>
+                    <!-- 用户消费记录 -->
+                    <div class="user-detail-section">
+                        <h4>最近消费记录</h4>
+                        <div class="user-detail-records" id="userRecords">
+                            <!-- 动态填充 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        </div><!-- 结束 analysisTab -->
+
+        <!-- ========== 统一数据同步区域 ========== -->
+        <div class="tab-content" id="syncDataTab">
+            <section class="sync-page">
+                <div class="sync-header">
+                    <h2>从 API 同步数据</h2>
+                    <p class="sync-description">从易石系统 API 同步上机记录和商品销售数据到数据库</p>
+                </div>
+                <div class="date-picker-section">
+                    <label>选择同步日期范围：</label>
+                    <div class="date-range-inputs">
+                        <input type="text" id="unifiedSyncStartDate" placeholder="开始日期" readonly>
+                        <span class="date-separator">至</span>
+                        <input type="text" id="unifiedSyncEndDate" placeholder="结束日期" readonly>
+                    </div>
+                    <p class="hint">选择要同步的日期范围（最新日期为昨天，当天数据不完整）</p>
+                </div>
+                <div class="sync-actions">
+                    <button class="btn btn-primary" id="startUnifiedSyncBtn" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        <span>开始同步</span>
+                    </button>
+                </div>
+
+                <!-- 同步进度区域 -->
+                <div id="unifiedSyncProgress" class="sync-progress hidden">
+                    <!-- 上机数据同步进度 -->
+                    <div class="sync-step" id="sessionSyncStep">
+                        <div class="sync-step-header">
+                            <span class="sync-step-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                    <path d="M8 21h8M12 17v4"/>
+                                </svg>
+                            </span>
+                            <span class="sync-step-title">上机数据</span>
+                            <span class="sync-step-status" id="sessionSyncStatus">等待中</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="sessionSyncProgressFill"></div>
+                        </div>
+                        <div class="progress-text" id="sessionSyncProgressText"></div>
+                    </div>
+                    <!-- 商品销售同步进度 -->
+                    <div class="sync-step" id="productSyncStep">
+                        <div class="sync-step-header">
+                            <span class="sync-step-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                    <line x1="3" y1="6" x2="21" y2="6"/>
+                                    <path d="M16 10a4 4 0 0 1-8 0"/>
+                                </svg>
+                            </span>
+                            <span class="sync-step-title">商品销售</span>
+                            <span class="sync-step-status" id="productSyncStatus">等待中</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="productSyncProgressFill"></div>
+                        </div>
+                        <div class="progress-text" id="productSyncProgressText"></div>
+                    </div>
+                </div>
+                <div id="unifiedSyncResult" class="sync-result hidden"></div>
+
+                <!-- 数据管理区域 -->
+                <div class="data-management-section">
+                    <h3>数据管理</h3>
+
+                    <!-- 上机数据管理 -->
+                    <div class="data-type-section">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                            </svg>
+                            上机数据
+                        </h4>
+                        <div class="delete-options">
+                            <div class="delete-option">
+                                <label>删除指定日期范围：</label>
+                                <div class="date-range-inputs">
+                                    <input type="text" id="sessionDeleteStartDate" placeholder="开始日期" readonly>
+                                    <span class="date-separator">至</span>
+                                    <input type="text" id="sessionDeleteEndDate" placeholder="结束日期" readonly>
+                                </div>
+                                <button class="btn btn-danger btn-sm" id="deleteSessionRangeBtn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    <span>删除</span>
+                                </button>
+                            </div>
+                            <div class="delete-option delete-all">
+                                <button class="btn btn-danger-outline btn-sm" id="deleteAllSessionBtn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                    <span>删除所有上机数据</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 商品销售数据管理 -->
+                    <div class="data-type-section">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 0 1-8 0"/>
+                            </svg>
+                            商品销售数据
+                        </h4>
+                        <div class="delete-options">
+                            <div class="delete-option">
+                                <label>删除指定日期范围：</label>
+                                <div class="date-range-inputs">
+                                    <input type="text" id="productDeleteStartDate" placeholder="开始日期" readonly>
+                                    <span class="date-separator">至</span>
+                                    <input type="text" id="productDeleteEndDate" placeholder="结束日期" readonly>
+                                </div>
+                                <button class="btn btn-danger btn-sm" id="deleteProductRangeBtn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                    <span>删除</span>
+                                </button>
+                            </div>
+                            <div class="delete-option delete-all">
+                                <button class="btn btn-danger-outline btn-sm" id="deleteAllProductBtn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                    </svg>
+                                    <span>删除所有商品数据</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div><!-- 结束 syncDataTab -->
 
             </div><!-- 结束 container -->
         </main><!-- 结束 main-content -->
@@ -920,11 +1089,9 @@
                 document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                 document.getElementById(tab + 'Tab').classList.add('active');
 
-                // Initialize date pickers for sync tabs
-                if (tab === 'syncSession' && typeof initSessionSyncDatePicker === 'function') {
-                    setTimeout(() => initSessionSyncDatePicker(), 100);
-                } else if (tab === 'syncProduct' && typeof initProductSyncDatePicker === 'function') {
-                    setTimeout(() => initProductSyncDatePicker(), 100);
+                // Initialize date pickers for unified sync tab
+                if (tab === 'syncData' && typeof initUnifiedSyncDatePicker === 'function') {
+                    setTimeout(() => initUnifiedSyncDatePicker(), 100);
                 }
 
                 // Trigger resize for charts
