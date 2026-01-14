@@ -2953,8 +2953,8 @@ function getOrderTypeName(orderType, orderSubtype) {
     // 卡券活动购买(3)需要根据子类型区分抖音/美团
     if (orderType === 3) {
         const subtypes = {
-            1: '抖音卡券',
-            2: '美团卡券'
+            1: '美团卡券',
+            3: '抖音卡券'
         };
         return subtypes[orderSubtype] || '其他卡券';
     }
