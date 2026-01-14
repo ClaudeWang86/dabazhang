@@ -2937,6 +2937,7 @@ async function loadAllRechargeData() {
 
 // 充值支付方式映射 (orderway)
 function getPayTypeName(payType) {
+    const type = Number(payType);
     const types = {
         1: '支付宝',
         2: '微信支付',
@@ -2945,18 +2946,22 @@ function getPayTypeName(payType) {
         5: '卡券兑换',
         6: '员工调整'
     };
-    return types[payType] || '其他';
+    return types[type] || '其他';
 }
 
 // 充值订单类型映射 (ordertype + order_subtype)
 function getOrderTypeName(orderType, orderSubtype) {
+    // 转换为数字（数据库可能返回字符串）
+    const type = Number(orderType);
+    const subtype = Number(orderSubtype);
+
     // 卡券活动购买(3)需要根据子类型区分抖音/美团
-    if (orderType === 3) {
+    if (type === 3) {
         const subtypes = {
             1: '美团卡券',
             3: '抖音卡券'
         };
-        return subtypes[orderSubtype] || '其他卡券';
+        return subtypes[subtype] || '其他卡券';
     }
 
     const types = {
@@ -2984,6 +2989,18 @@ function processRechargeData() {
     const totalGift = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0);
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
+    // 调试：检查数据中的 pay_channel 和 order_subtype 值
+    const payChannelValues = {};
+    const orderSubtypeValues = {};
+    rechargeRawData.forEach(r => {
+        const pc = r.pay_channel ?? 'null';
+        const os = r.order_subtype ?? 'null';
+        payChannelValues[pc] = (payChannelValues[pc] || 0) + 1;
+        orderSubtypeValues[os] = (orderSubtypeValues[os] || 0) + 1;
+    });
+    console.log('数据库 pay_channel 值统计:', payChannelValues);
+    console.log('数据库 order_subtype 值统计:', orderSubtypeValues);
+
     // 按订单类型统计（区分抖音/美团卡券）
     const byChannel = {};
     rechargeRawData.forEach(r => {
@@ -2994,6 +3011,7 @@ function processRechargeData() {
         byChannel[channel].count++;
         byChannel[channel].amount += parseFloat(r.order_fee) || 0;
     });
+    console.log('处理后的 byChannel:', byChannel);
 
     // 按支付方式统计
     const byType = {};
