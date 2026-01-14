@@ -698,23 +698,39 @@ async function fetchAllRecharges(token, startTime, endTime) {
  * 转换 API 记录为 recharges 表格式
  */
 function transformRechargeRecords(records) {
-    return records
-        .filter(r => r.orderstatus === 1) // 只处理成功的订单
+    // 调试：打印第一条原始记录的结构
+    if (records.length > 0) {
+        console.log('原始充值记录示例:', JSON.stringify(records[0], null, 2));
+    }
+
+    const transformed = records
+        .filter(r => {
+            // 检查订单状态字段（可能是 orderstatus 或 orderStatus 或其他）
+            const status = r.orderstatus ?? r.orderStatus ?? r.status ?? 1;
+            return status === 1;
+        })
         .map(r => ({
-            order_id: String(r.orderid || ''),
-            account: String(r.account || ''),
-            member_name: r.membername || null,
-            order_fee: (r.orderfee || 0) / 100,          // 订单金额（分转元）
-            pay_fee: (r.payfee || 0) / 100,              // 支付金额
-            gift_fee: (r.giftfee || 0) / 100,            // 赠送金额
-            pay_type: getPayType(r.paytype),              // 支付类型
-            pay_channel: getPayChannel(r.paychannel),     // 支付渠道
-            order_status: r.orderstatus,                  // 订单状态
-            create_time: timestampToISO(r.createtime),    // 创建时间
-            pay_time: timestampToISO(r.paytime),          // 支付时间
+            order_id: String(r.orderid || r.orderId || r.id || ''),
+            account: String(r.account || r.memberaccount || ''),
+            member_name: r.membername || r.memberName || null,
+            order_fee: (r.orderfee || r.orderFee || r.ordermoney || 0) / 100,
+            pay_fee: (r.payfee || r.payFee || r.paymoney || 0) / 100,
+            gift_fee: (r.giftfee || r.giftFee || r.giftmoney || 0) / 100,
+            pay_type: getPayType(r.paytype || r.payType),
+            pay_channel: getPayChannel(r.paychannel || r.payChannel),
+            order_status: r.orderstatus ?? r.orderStatus ?? r.status,
+            create_time: timestampToISO(r.createtime || r.createTime || r.addtime),
+            pay_time: timestampToISO(r.paytime || r.payTime),
             store: '太初电竞'
         }))
         .filter(r => r.order_id && r.create_time);
+
+    console.log(`转换结果: ${records.length} 条原始记录 -> ${transformed.length} 条有效记录`);
+    if (transformed.length > 0) {
+        console.log('转换后记录示例:', JSON.stringify(transformed[0], null, 2));
+    }
+
+    return transformed;
 }
 
 /**
@@ -750,6 +766,11 @@ function getPayChannel(paychannel) {
 async function saveRechargesToSupabase(recharges, rechargeDate) {
     console.log(`正在保存 ${recharges.length} 条充值记录到数据库 (${rechargeDate})...`);
 
+    if (recharges.length === 0) {
+        console.log('没有需要保存的充值记录');
+        return 0;
+    }
+
     const config = getSupabaseConfig();
     const supabaseUrl = `${config.url}/rest/v1`;
     const headers = {
@@ -759,24 +780,33 @@ async function saveRechargesToSupabase(recharges, rechargeDate) {
         'Prefer': 'resolution=merge-duplicates'
     };
 
+    console.log('Supabase URL:', supabaseUrl);
+
     // 分批上传
     const batchSize = 50;
     let uploaded = 0;
 
     for (let i = 0; i < recharges.length; i += batchSize) {
         const batch = recharges.slice(i, i + batchSize);
+        console.log(`上传批次 ${Math.floor(i / batchSize) + 1}: ${batch.length} 条记录`);
 
-        const response = await fetch(`${supabaseUrl}/recharges`, {
-            method: 'POST',
-            headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' },
-            body: JSON.stringify(batch)
-        });
+        try {
+            const response = await fetch(`${supabaseUrl}/recharges`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' },
+                body: JSON.stringify(batch)
+            });
 
-        if (!response.ok) {
-            const error = await response.text();
-            console.error(`批次上传失败:`, error);
-        } else {
-            uploaded += batch.length;
+            const responseText = await response.text();
+
+            if (!response.ok) {
+                console.error(`批次上传失败 (HTTP ${response.status}):`, responseText);
+            } else {
+                uploaded += batch.length;
+                console.log(`批次上传成功: ${batch.length} 条`);
+            }
+        } catch (err) {
+            console.error('上传请求失败:', err.message);
         }
     }
 
