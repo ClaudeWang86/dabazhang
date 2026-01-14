@@ -104,14 +104,21 @@ export default async function handler(req, res) {
             return res.status(200).json(data);
 
         } else if (action === 'recharges') {
-            // 获取充值记录数据
+            // 获取充值记录数据 - 使用与 yisbar 后台相同的过滤参数
             const { startTime, endTime } = req.query;
             if (!token || !startTime || !endTime) {
                 return res.status(400).json({ error: 'Missing token or time parameters' });
             }
 
+            // 支付方式列表
+            const orderPayWayList = [1, 2, 3, 4];
+            // 订单类型列表 (排除不需要的类型)
+            const orderTypeList = [29, 30, 3, 32, 33, 34, 35, 36, 37, 31, 22, 26, 1, 2, 4, 10, 12, 16, 17, 18, 19, 23, 24, 25, 27, 28, 38];
+            // 订单状态列表: 2=待支付, 3=已完成, 4=全额退款, 9=部分退款
+            const orderStateList = [2, 3, 4, 9];
+
             const params = new URLSearchParams({
-                'timeType': '1',
+                'timeType': '0',
                 'gidList[0]': API_CONFIG.gid,
                 'pageIndex': page,
                 'pageSize': pageSize,
@@ -120,6 +127,21 @@ export default async function handler(req, res) {
                 'account': '',
                 'membername': '',
                 'orderid': ''
+            });
+
+            // 添加支付方式列表
+            orderPayWayList.forEach((way, i) => {
+                params.append(`orderPayWayList[${i}]`, way);
+            });
+
+            // 添加订单类型列表
+            orderTypeList.forEach((type, i) => {
+                params.append(`orderTypeList[${i}]`, type);
+            });
+
+            // 添加订单状态列表
+            orderStateList.forEach((state, i) => {
+                params.append(`orderStateList[${i}]`, state);
             });
 
             const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.rechargesEndpoint}?${params.toString()}`, {

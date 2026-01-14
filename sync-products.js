@@ -705,17 +705,10 @@ async function fetchAllRecharges(token, startTime, endTime) {
 
 /**
  * 转换 API 记录为 recharges 表格式
+ * API 已通过 orderStateList 和 orderTypeList 过滤，这里只做字段映射
  */
 function transformRechargeRecords(records) {
-    // 状态说明: 3=已完成, 4=全额退款, 9=部分退款
-    // ordertype 30 = 押金退还（不计入充值收入）
-    const VALID_STATES = [3, 4, 9];
-
     const transformed = records
-        .filter(r => {
-            const state = r.state ?? r.orderstatus ?? 0;
-            return VALID_STATES.includes(state);
-        })
         .map(r => {
             const orderId = r.orderid || r.orderId || r.id || r.orderCode || '';
             const createTime = r.createtime || r.createTime || r.addtime || r.ordertime || r.orderTime;
@@ -728,11 +721,11 @@ function transformRechargeRecords(records) {
                 pay_fee: Number(((r.payfee || r.payFee || r.orderfee || 0) / 100).toFixed(2)),
                 gift_fee: Number(((r.adwardfee || r.awardFee || r.giftfee || 0) / 100).toFixed(2)),
                 refund_fee: Number(((r.refundFee || r.refundfee || 0) / 100).toFixed(2)),
-                deposit: Number(((r.deposit || 0) / 100).toFixed(2)),  // 押金（负数表示退还）
+                deposit: Number(((r.deposit || 0) / 100).toFixed(2)),
                 pay_type: r.orderway ?? null,
                 pay_channel: r.ordertype ?? null,
                 order_subtype: r.ordersubway ?? null,
-                state: r.state ?? null,  // 3=已完成, 4=全额退款, 9=部分退款
+                state: r.state ?? null,
                 refund_time: timestampToISO(r.refundtime),
                 parent_order_id: r.parentorderid ? String(r.parentorderid) : null,
                 create_time: timestampToISO(createTime),
@@ -744,13 +737,17 @@ function transformRechargeRecords(records) {
 
     console.log(`转换完成: ${records.length} 条 -> ${transformed.length} 条有效记录`);
 
-    // 统计各状态数量
+    // 统计各状态和类型
     const stateCounts = {};
+    const typeCounts = {};
     transformed.forEach(r => {
         const s = r.state ?? 'unknown';
+        const t = r.pay_channel ?? 'unknown';
         stateCounts[s] = (stateCounts[s] || 0) + 1;
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
     });
     console.log('状态分布:', stateCounts);
+    console.log('类型分布:', typeCounts);
 
     return transformed;
 }
