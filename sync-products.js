@@ -698,36 +698,40 @@ async function fetchAllRecharges(token, startTime, endTime) {
  * 转换 API 记录为 recharges 表格式
  */
 function transformRechargeRecords(records) {
-    // 调试：打印第一条原始记录的结构
+    // 调试：打印第一条原始记录的所有字段
     if (records.length > 0) {
+        console.log('原始充值记录字段:', Object.keys(records[0]));
         console.log('原始充值记录示例:', JSON.stringify(records[0], null, 2));
     }
 
     const transformed = records
-        .filter(r => {
-            // 检查订单状态字段（可能是 orderstatus 或 orderStatus 或其他）
-            const status = r.orderstatus ?? r.orderStatus ?? r.status ?? 1;
-            return status === 1;
+        .map(r => {
+            // 尝试多种可能的字段名
+            const orderId = r.orderid || r.orderId || r.id || r.orderCode || '';
+            const createTime = r.createtime || r.createTime || r.addtime || r.ordertime || r.orderTime;
+
+            return {
+                order_id: String(orderId),
+                account: String(r.account || r.memberaccount || r.memberAccount || ''),
+                member_name: r.membername || r.memberName || r.nickname || null,
+                order_fee: (r.orderfee || r.orderFee || r.ordermoney || r.orderMoney || r.money || 0) / 100,
+                pay_fee: (r.payfee || r.payFee || r.paymoney || r.payMoney || 0) / 100,
+                gift_fee: (r.giftfee || r.giftFee || r.giftmoney || r.giftMoney || r.gift || 0) / 100,
+                pay_type: getPayType(r.paytype || r.payType || r.payway || r.payWay),
+                pay_channel: getPayChannel(r.paychannel || r.payChannel),
+                order_status: r.orderstatus ?? r.orderStatus ?? r.status ?? 1,
+                create_time: timestampToISO(createTime),
+                pay_time: timestampToISO(r.paytime || r.payTime || r.successtime),
+                store: '太初电竞'
+            };
         })
-        .map(r => ({
-            order_id: String(r.orderid || r.orderId || r.id || ''),
-            account: String(r.account || r.memberaccount || ''),
-            member_name: r.membername || r.memberName || null,
-            order_fee: (r.orderfee || r.orderFee || r.ordermoney || 0) / 100,
-            pay_fee: (r.payfee || r.payFee || r.paymoney || 0) / 100,
-            gift_fee: (r.giftfee || r.giftFee || r.giftmoney || 0) / 100,
-            pay_type: getPayType(r.paytype || r.payType),
-            pay_channel: getPayChannel(r.paychannel || r.payChannel),
-            order_status: r.orderstatus ?? r.orderStatus ?? r.status,
-            create_time: timestampToISO(r.createtime || r.createTime || r.addtime),
-            pay_time: timestampToISO(r.paytime || r.payTime),
-            store: '太初电竞'
-        }))
-        .filter(r => r.order_id && r.create_time);
+        .filter(r => r.order_id);  // 只要有订单号就保留
 
     console.log(`转换结果: ${records.length} 条原始记录 -> ${transformed.length} 条有效记录`);
     if (transformed.length > 0) {
         console.log('转换后记录示例:', JSON.stringify(transformed[0], null, 2));
+    } else if (records.length > 0) {
+        console.log('转换失败！原始记录有数据但转换后为空');
     }
 
     return transformed;
