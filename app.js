@@ -2989,27 +2989,33 @@ function processRechargeData() {
     const getNetAmount = (r) => {
         const orderFee = parseFloat(r.order_fee) || 0;
         const refundFee = parseFloat(r.refund_fee) || 0;
-
-        // 押金操作 (ordertype=30): orderfee + deposit
-        if (isDepositOperation(r)) {
-            const deposit = parseFloat(r.deposit) || 0;
-            return orderFee + deposit;
-        }
-
-        // 所有其他订单: orderfee - refundFee
-        // state=3 (已完成): orderfee - 0 = orderfee
-        // state=4 (全额退款): orderfee - refundFee = 0
-        // state=9 (部分退款): orderfee - refundFee
+        // 所有订单: orderfee - refundFee
         return orderFee - refundFee;
     };
 
-    // 所有记录都参与统计
-    const revenueRecords = rechargeRawData;
+    // 排除押金退还记录 (pay_channel=30)，它们只是记录不代表实际收入
+    const revenueRecords = rechargeRawData.filter(r => !isDepositOperation(r));
+
+    // 调试：检查押金操作订单
+    const depositOrders = rechargeRawData.filter(r => isDepositOperation(r));
+    console.log('=== 押金操作订单 (pay_channel=30) ===');
+    console.log('数量:', depositOrders.length);
+    depositOrders.forEach(r => {
+        const net = getNetAmount(r);
+        console.log(`订单${r.order_id}: order_fee=${r.order_fee}, deposit=${r.deposit}, 计算结果=${net}`);
+    });
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
     const totalAmount = Math.round(revenueRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
     // 退款总额
     const totalRefund = Math.round(revenueRecords.reduce((sum, r) => sum + (parseFloat(r.refund_fee) || 0), 0) * 100) / 100;
+    // 订单金额总额（不扣退款）
+    const totalOrderFee = Math.round(revenueRecords.reduce((sum, r) => sum + (parseFloat(r.order_fee) || 0), 0) * 100) / 100;
+    console.log(`=== 金额汇总 ===`);
+    console.log(`订单金额总额: ${totalOrderFee}`);
+    console.log(`退款总额: ${totalRefund}`);
+    console.log(`净额 (计算): ${totalAmount}`);
+    console.log(`验证: ${totalOrderFee} - ${totalRefund} = ${totalOrderFee - totalRefund}`);
     const totalGift = Math.round(rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0) * 100) / 100;
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
