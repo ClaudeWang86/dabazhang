@@ -703,17 +703,29 @@ function transformRechargeRecords(records) {
         console.log('原始充值记录字段:', Object.keys(records[0]));
         console.log('原始充值记录示例:', JSON.stringify(records[0], null, 2));
 
-        // 调试：统计 orderway 和 ordertype 的所有值
+        // 调试：统计 orderway, ordertype, ordersubway 的所有值
         const orderwayValues = {};
         const ordertypeValues = {};
+        const ordersubwayValues = {};
         records.forEach(r => {
             const way = r.orderway ?? 'undefined';
             const type = r.ordertype ?? 'undefined';
+            const subway = r.ordersubway ?? 'null';
             orderwayValues[way] = (orderwayValues[way] || 0) + 1;
             ordertypeValues[type] = (ordertypeValues[type] || 0) + 1;
+            ordersubwayValues[subway] = (ordersubwayValues[subway] || 0) + 1;
         });
         console.log('API 返回的 orderway 值统计:', orderwayValues);
         console.log('API 返回的 ordertype 值统计:', ordertypeValues);
+        console.log('API 返回的 ordersubway 值统计:', ordersubwayValues);
+
+        // 单独统计 ordertype=3 (卡券活动购买) 的 ordersubway
+        const couponSubways = {};
+        records.filter(r => r.ordertype === 3).forEach(r => {
+            const subway = r.ordersubway ?? 'null';
+            couponSubways[subway] = (couponSubways[subway] || 0) + 1;
+        });
+        console.log('卡券活动购买(ordertype=3)的 ordersubway 值统计:', couponSubways);
     }
 
     const transformed = records
@@ -729,8 +741,9 @@ function transformRechargeRecords(records) {
                 order_fee: (r.orderfee || r.orderFee || 0) / 100,
                 pay_fee: (r.payfee || r.payFee || r.orderfee || 0) / 100,
                 gift_fee: (r.adwardfee || r.awardFee || r.giftfee || 0) / 100,
-                pay_type: getPayType(r.orderway),
-                pay_channel: getOrderType(r.ordertype),
+                pay_type: r.orderway ?? null,           // 存原始数字：1=支付宝, 2=微信, 3=现金, 4=线下, 5=卡券兑换
+                pay_channel: r.ordertype ?? null,       // 存原始数字：1=账户充值, 3=卡券活动, 4=购买商品...
+                order_subtype: r.ordersubway ?? null,   // 存原始数字：卡券子类型（抖音/美团）
                 order_status: r.orderstatus ?? r.orderStatus ?? r.status ?? 1,
                 create_time: timestampToISO(createTime),
                 pay_time: timestampToISO(r.paytime || r.payTime || r.successtime),
@@ -768,12 +781,21 @@ function getPayType(orderway) {
 /**
  * 根据 ordertype 获取订单类型名称
  * 映射来自 Excel 对比: 订单218567 ordertype=4 -> 购买商品
+ * ordersubway 用于区分卡券活动购买的子类型（抖音/美团）
  */
-function getOrderType(ordertype) {
+function getOrderType(ordertype, ordersubway) {
+    // 卡券活动购买需要根据 ordersubway 区分抖音/美团
+    if (ordertype === 3) {
+        const subways = {
+            1: '抖音卡券',
+            2: '美团卡券'
+        };
+        return subways[ordersubway] || `卡券活动(${ordersubway ?? '未知'})`;
+    }
+
     const types = {
         1: '账户充值',
         2: '第三方余额导入',
-        3: '卡券活动购买',
         4: '购买商品',
         5: '临卡押金充值',
         6: '押金找零',

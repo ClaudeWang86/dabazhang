@@ -2935,6 +2935,43 @@ async function loadAllRechargeData() {
     }
 }
 
+// 充值支付方式映射 (orderway)
+function getPayTypeName(payType) {
+    const types = {
+        1: '支付宝',
+        2: '微信支付',
+        3: '现金支付',
+        4: '线下支付',
+        5: '卡券兑换',
+        6: '员工调整'
+    };
+    return types[payType] || '其他';
+}
+
+// 充值订单类型映射 (ordertype + order_subtype)
+function getOrderTypeName(orderType, orderSubtype) {
+    // 卡券活动购买(3)需要根据子类型区分抖音/美团
+    if (orderType === 3) {
+        const subtypes = {
+            1: '抖音卡券',
+            2: '美团卡券'
+        };
+        return subtypes[orderSubtype] || '其他卡券';
+    }
+
+    const types = {
+        1: '账户充值',
+        2: '第三方余额导入',
+        4: '购买商品',
+        5: '临卡押金充值',
+        6: '押金找零',
+        7: '变更网费余额',
+        8: '账户充值退款',
+        9: '商品退款'
+    };
+    return types[orderType] || '其他';
+}
+
 // 处理充值数据
 function processRechargeData() {
     if (rechargeRawData.length === 0) {
@@ -2947,10 +2984,10 @@ function processRechargeData() {
     const totalGift = rechargeRawData.reduce((sum, r) => sum + (parseFloat(r.gift_fee) || 0), 0);
     const uniqueUsers = new Set(rechargeRawData.map(r => r.account)).size;
 
-    // 按支付渠道统计
+    // 按订单类型统计（区分抖音/美团卡券）
     const byChannel = {};
     rechargeRawData.forEach(r => {
-        const channel = r.pay_channel || '其他';
+        const channel = getOrderTypeName(r.pay_channel, r.order_subtype);
         if (!byChannel[channel]) {
             byChannel[channel] = { count: 0, amount: 0 };
         }
@@ -2961,7 +2998,7 @@ function processRechargeData() {
     // 按支付方式统计
     const byType = {};
     rechargeRawData.forEach(r => {
-        const type = r.pay_type || '其他';
+        const type = getPayTypeName(r.pay_type);
         if (!byType[type]) {
             byType[type] = { count: 0, amount: 0 };
         }
