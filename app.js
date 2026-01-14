@@ -2985,8 +2985,17 @@ function processRechargeData() {
     };
 
     // 根据 category 字段区分营收订单和退货订单
-    const revenueRecords = rechargeRawData.filter(r => r.category === 'revenue');
+    // 注意：没有 category 字段的旧数据默认当作营收订单
+    const revenueRecords = rechargeRawData.filter(r => r.category === 'revenue' || !r.category);
     const refundRecords = rechargeRawData.filter(r => r.category === 'refund');
+
+    // 调试：检查 category 分布
+    const categoryStats = {};
+    rechargeRawData.forEach(r => {
+        const cat = r.category || 'null/undefined';
+        categoryStats[cat] = (categoryStats[cat] || 0) + 1;
+    });
+    console.log('=== category 字段分布 ===', categoryStats);
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
     // 营收总额 = 营收订单的 order_fee 总和
@@ -3695,7 +3704,7 @@ async function startUnifiedApiSync() {
             productResult = { success: true, records: totalProducts, days: syncedDays };
         }
 
-        // ========== 第三阶段：同步充值记录 ==========
+        // ========== 第三阶段：同步订单数据（营收 + 退货）==========
         if (rechargeStep) {
             rechargeStep.className = 'sync-step active';
             rechargeStatus.textContent = '同步中';
@@ -3722,11 +3731,22 @@ async function startUnifiedApiSync() {
 
                     const startTime = dateToTimestamp(date, false);
                     const endTime = dateToTimestamp(date, true);
-                    const records = await fetchAllRecharges(token, startTime, endTime);
 
-                    if (records.length > 0) {
-                        const recharges = transformRechargeRecords(records);
-                        const saved = await saveRechargesToSupabase(recharges, date);
+                    // 获取营收订单
+                    const revenueRecords = await fetchAllOrders(token, startTime, endTime, 'revenue');
+                    const revenueOrders = transformOrderRecords(revenueRecords, 'revenue');
+                    console.log(`  ${date} 营收订单: ${revenueOrders.length} 条`);
+
+                    // 获取退货订单
+                    const refundRecords = await fetchAllOrders(token, startTime, endTime, 'refund');
+                    const refundOrders = transformOrderRecords(refundRecords, 'refund');
+                    console.log(`  ${date} 退货订单: ${refundOrders.length} 条`);
+
+                    // 合并并保存
+                    const allOrders = [...revenueOrders, ...refundOrders];
+                    if (allOrders.length > 0) {
+                        const saved = await saveOrdersToSupabase(allOrders, date);
+                        await updateOrderDates(date, revenueOrders, refundOrders);
                         totalRecharges += saved;
                         syncedDays++;
                     }
