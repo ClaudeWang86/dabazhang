@@ -752,14 +752,22 @@ function transformRechargeRecords(records) {
         })
         .filter(r => r.order_id);  // 只要有订单号就保留
 
-    console.log(`转换结果: ${records.length} 条原始记录 -> ${transformed.length} 条有效记录`);
-    if (transformed.length > 0) {
-        console.log('转换后记录示例:', JSON.stringify(transformed[0], null, 2));
-    } else if (records.length > 0) {
-        console.log('转换失败！原始记录有数据但转换后为空');
+    // 过滤只保留已成功的订单 (state=3)
+    const successRecords = transformed.filter(r => {
+        // 从原始记录中获取状态
+        const originalRecord = records.find(orig =>
+            String(orig.orderid || orig.orderId) === r.order_id
+        );
+        const state = originalRecord?.state ?? originalRecord?.orderstatus ?? 3;
+        return state === 3;  // state=3 表示已成功
+    });
+
+    console.log(`状态过滤: ${transformed.length} 条 -> ${successRecords.length} 条已成功订单`);
+    if (successRecords.length > 0) {
+        console.log('转换后记录示例:', JSON.stringify(successRecords[0], null, 2));
     }
 
-    return transformed;
+    return successRecords;
 }
 
 /**
