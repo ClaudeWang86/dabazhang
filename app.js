@@ -170,9 +170,18 @@ function initUnifiedDatePicker() {
         }
     }
 
-    // 绑定加载按钮事件
-    document.getElementById('loadUnifiedDataBtn')?.addEventListener('click', loadUnifiedData);
-    document.getElementById('loadAllDataBtn')?.addEventListener('click', loadAllData);
+    // 绑定加载按钮事件（只绑定一次）
+    const loadUnifiedBtn = document.getElementById('loadUnifiedDataBtn');
+    const loadAllBtn = document.getElementById('loadAllDataBtn');
+
+    if (loadUnifiedBtn && !loadUnifiedBtn._listenerAdded) {
+        loadUnifiedBtn.addEventListener('click', loadUnifiedData);
+        loadUnifiedBtn._listenerAdded = true;
+    }
+    if (loadAllBtn && !loadAllBtn._listenerAdded) {
+        loadAllBtn.addEventListener('click', loadAllData);
+        loadAllBtn._listenerAdded = true;
+    }
 }
 
 // 处理统一日期选择
@@ -310,17 +319,35 @@ async function loadSeatMapDataByRange(startDate, endDate) {
     const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     seatMapTotalHours = daysDiff * 24;
 
-    // 从数据库查询上机记录
-    const { data, error } = await db
-        .from('sessions')
-        .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
-        .gte('start_time', `${startDate}T00:00:00Z`)
-        .lte('start_time', `${endDate}T23:59:59Z`);
+    // 分页获取所有数据（Supabase 默认限制 1000 条）
+    const PAGE_SIZE = 1000;
+    let allData = [];
+    let page = 0;
+    let hasMore = true;
 
-    if (error) throw error;
+    while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        // 使用 +08:00 时区（北京时间）与存储数据一致
+        const { data, error } = await db
+            .from('sessions')
+            .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
+            .gte('start_time', `${startDate}T00:00:00+08:00`)
+            .lte('start_time', `${endDate}T23:59:59+08:00`)
+            .range(from, to);
+
+        if (error) throw error;
+
+        allData = allData.concat(data);
+        hasMore = data.length === PAGE_SIZE;
+        page++;
+    }
+
+    console.log(`座位图数据: 共加载 ${allData.length} 条记录`);
 
     // 处理数据
-    processSeatData(data || []);
+    processSeatData(allData);
 
     // 显示结果
     document.getElementById('seatMapStats')?.classList.remove('hidden');
@@ -543,18 +570,50 @@ async function loadSelectedData() {
 // 按日期范围加载上机数据
 async function loadDataByDateRange(startDate, endDate) {
     try {
-        // 使用 UTC 时区进行查询，确保与存储格式一致
-        const { data, error } = await db
-            .from('sessions')
-            .select('*')
-            .gte('start_time', startDate + 'T00:00:00Z')
-            .lte('start_time', endDate + 'T23:59:59Z')
-            .order('start_time', { ascending: false });
+        console.log(`加载上机数据: ${startDate} 至 ${endDate}`);
 
-        if (error) throw error;
+        // 分页获取所有数据（Supabase 默认限制 1000 条）
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+            const from = page * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            // 使用 +08:00 时区（北京时间）与存储数据一致
+            const { data, error } = await db
+                .from('sessions')
+                .select('*')
+                .gte('start_time', startDate + 'T00:00:00+08:00')
+                .lte('start_time', endDate + 'T23:59:59+08:00')
+                .order('start_time', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            allData = allData.concat(data);
+            console.log(`第 ${page + 1} 页: 获取 ${data.length} 条记录`);
+
+            // 如果返回的数据少于 PAGE_SIZE，说明没有更多数据了
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+        }
+
+        const data = allData;
+        console.log(`查询到 ${data.length} 条上机记录`);
 
         if (data.length === 0) {
             console.log('选中日期范围内没有上机数据');
+            // 即使没有数据也要更新显示
+            rawData = [];
+            processData();
+            processedData.dateRange = {
+                start: new Date(startDate),
+                end: new Date(endDate)
+            };
+            renderDashboard();
             return;
         }
 
@@ -577,19 +636,38 @@ async function loadDataByDateRange(startDate, endDate) {
 // 加载全部上机数据
 async function loadAllSessionData() {
     try {
-        const { data, error } = await db
-            .from('sessions')
-            .select('*')
-            .order('start_time', { ascending: false });
+        // 分页获取所有数据（Supabase 默认限制 1000 条）
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+            const from = page * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
 
-        if (data.length === 0) {
+            const { data, error } = await db
+                .from('sessions')
+                .select('*')
+                .order('start_time', { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+
+            allData = allData.concat(data);
+            console.log(`加载全部数据 - 第 ${page + 1} 页: 获取 ${data.length} 条记录`);
+
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+        }
+
+        if (allData.length === 0) {
             console.log('数据库中没有上机数据');
             return;
         }
 
-        rawData = convertFromDb(data);
+        console.log(`共加载 ${allData.length} 条上机记录`);
+        rawData = convertFromDb(allData);
         processData();
         renderDashboard();
     } catch (err) {
@@ -4233,17 +4311,35 @@ async function loadSeatMapData() {
         const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
         seatMapTotalHours = daysDiff * 24; // 每天24小时
 
-        // 从数据库查询上机记录
-        const { data, error } = await db
-            .from('sessions')
-            .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
-            .gte('start_time', `${seatMapDateRange.start}T00:00:00Z`)
-            .lte('start_time', `${seatMapDateRange.end}T23:59:59Z`);
+        // 分页获取所有数据（Supabase 默认限制 1000 条）
+        const PAGE_SIZE = 1000;
+        let allData = [];
+        let page = 0;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+            const from = page * PAGE_SIZE;
+            const to = from + PAGE_SIZE - 1;
+
+            // 使用 +08:00 时区（北京时间）与存储数据一致
+            const { data, error } = await db
+                .from('sessions')
+                .select('machine, area, start_time, end_time, deposit_deducted, principal_deducted, bonus_deducted')
+                .gte('start_time', `${seatMapDateRange.start}T00:00:00+08:00`)
+                .lte('start_time', `${seatMapDateRange.end}T23:59:59+08:00`)
+                .range(from, to);
+
+            if (error) throw error;
+
+            allData = allData.concat(data);
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+        }
+
+        console.log(`座位图数据: 共加载 ${allData.length} 条记录`);
 
         // 处理数据
-        processSeatData(data || []);
+        processSeatData(allData);
 
         // 显示结果
         document.getElementById('seatMapStats')?.classList.remove('hidden');
