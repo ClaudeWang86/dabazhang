@@ -543,11 +543,12 @@ async function loadSelectedData() {
 // 按日期范围加载上机数据
 async function loadDataByDateRange(startDate, endDate) {
     try {
+        // 使用 UTC 时区进行查询，确保与存储格式一致
         const { data, error } = await db
             .from('sessions')
             .select('*')
-            .gte('start_time', startDate + 'T00:00:00')
-            .lte('start_time', endDate + 'T23:59:59')
+            .gte('start_time', startDate + 'T00:00:00Z')
+            .lte('start_time', endDate + 'T23:59:59Z')
             .order('start_time', { ascending: false });
 
         if (error) throw error;
@@ -559,6 +560,13 @@ async function loadDataByDateRange(startDate, endDate) {
 
         rawData = convertFromDb(data);
         processData();
+
+        // 使用用户选择的日期范围，而不是从数据计算的范围
+        processedData.dateRange = {
+            start: new Date(startDate),
+            end: new Date(endDate)
+        };
+
         renderDashboard();
     } catch (err) {
         console.error('加载上机数据失败:', err);
