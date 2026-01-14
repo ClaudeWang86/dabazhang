@@ -614,6 +614,247 @@ async function syncSessionRecords(startDate, endDate) {
     }
 }
 
+// =====================================================
+// 充值记录同步功能
+// =====================================================
+
+/**
+ * 获取充值记录数据（单页）
+ */
+async function fetchRechargesPage(token, startTime, endTime, page = 1, pageSize = 100) {
+    let data;
+
+    if (useProxy()) {
+        // 使用代理 API（Vercel 环境）
+        const proxyParams = new URLSearchParams({
+            action: 'recharges',
+            token: token,
+            startTime: startTime,
+            endTime: endTime,
+            page: page,
+            pageSize: pageSize
+        });
+        const response = await fetch(`/api/sync-proxy?${proxyParams.toString()}`);
+        data = await response.json();
+    } else {
+        // 直接调用（本地开发或 Node.js）
+        const params = new URLSearchParams({
+            'timeType': '1',
+            'gidList[0]': API_CONFIG.gid,
+            'pageIndex': page,
+            'pageSize': pageSize,
+            'starttime': startTime,
+            'endtime': endTime,
+            'account': '',
+            'membername': '',
+            'orderid': ''
+        });
+
+        const response = await fetch(`${API_CONFIG.baseUrl}/netbar/admin/netbarOrder/select?${params.toString()}`, {
+            headers: {
+                'Accept': 'application/json',
+                'Origin': 'https://admin.yisbar.com',
+                'Referer': 'https://admin.yisbar.com/',
+                'source': String(API_CONFIG.source),
+                'token': token
+            }
+        });
+        data = await response.json();
+    }
+
+    if (data.state !== 0) {
+        throw new Error(`获取充值记录失败: ${data.des || '未知错误'}`);
+    }
+
+    return {
+        records: data.data?.list || [],
+        total: data.data?.total || 0
+    };
+}
+
+/**
+ * 获取所有充值记录（自动分页）
+ */
+async function fetchAllRecharges(token, startTime, endTime) {
+    const pageSize = 100;
+    let page = 1;
+    let allRecords = [];
+    let hasMore = true;
+
+    while (hasMore) {
+        const result = await fetchRechargesPage(token, startTime, endTime, page, pageSize);
+        allRecords = allRecords.concat(result.records);
+
+        console.log(`  充值记录第 ${page} 页: 获取 ${result.records.length} 条 (总计: ${allRecords.length}/${result.total})`);
+
+        hasMore = allRecords.length < result.total;
+        page++;
+    }
+
+    return allRecords;
+}
+
+/**
+ * 转换 API 记录为 recharges 表格式
+ */
+function transformRechargeRecords(records) {
+    return records
+        .filter(r => r.orderstatus === 1) // 只处理成功的订单
+        .map(r => ({
+            order_id: String(r.orderid || ''),
+            account: String(r.account || ''),
+            member_name: r.membername || null,
+            order_fee: (r.orderfee || 0) / 100,          // 订单金额（分转元）
+            pay_fee: (r.payfee || 0) / 100,              // 支付金额
+            gift_fee: (r.giftfee || 0) / 100,            // 赠送金额
+            pay_type: getPayType(r.paytype),              // 支付类型
+            pay_channel: getPayChannel(r.paychannel),     // 支付渠道
+            order_status: r.orderstatus,                  // 订单状态
+            create_time: timestampToISO(r.createtime),    // 创建时间
+            pay_time: timestampToISO(r.paytime),          // 支付时间
+            store: '太初电竞'
+        }))
+        .filter(r => r.order_id && r.create_time);
+}
+
+/**
+ * 根据支付类型代码获取名称
+ */
+function getPayType(paytype) {
+    const types = {
+        1: '微信',
+        2: '支付宝',
+        3: '现金',
+        4: '其他'
+    };
+    return types[paytype] || '其他';
+}
+
+/**
+ * 根据支付渠道代码获取名称
+ */
+function getPayChannel(paychannel) {
+    const channels = {
+        1: '扫码支付',
+        2: 'APP支付',
+        3: '小程序',
+        4: '公众号',
+        5: '现金'
+    };
+    return channels[paychannel] || '其他';
+}
+
+/**
+ * 保存充值记录到 Supabase（使用 upsert 去重）
+ */
+async function saveRechargesToSupabase(recharges, rechargeDate) {
+    console.log(`正在保存 ${recharges.length} 条充值记录到数据库 (${rechargeDate})...`);
+
+    const config = getSupabaseConfig();
+    const supabaseUrl = `${config.url}/rest/v1`;
+    const headers = {
+        'apikey': config.key,
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+    };
+
+    // 分批上传
+    const batchSize = 50;
+    let uploaded = 0;
+
+    for (let i = 0; i < recharges.length; i += batchSize) {
+        const batch = recharges.slice(i, i + batchSize);
+
+        const response = await fetch(`${supabaseUrl}/recharges`, {
+            method: 'POST',
+            headers: { ...headers, 'Prefer': 'return=representation,resolution=merge-duplicates' },
+            body: JSON.stringify(batch)
+        });
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error(`批次上传失败:`, error);
+        } else {
+            uploaded += batch.length;
+        }
+    }
+
+    // 更新 recharge_dates 表
+    const totalAmount = recharges.reduce((sum, r) => sum + (r.order_fee || 0), 0);
+    const totalGift = recharges.reduce((sum, r) => sum + (r.gift_fee || 0), 0);
+
+    await fetch(`${supabaseUrl}/recharge_dates`, {
+        method: 'POST',
+        headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({
+            date: rechargeDate,
+            record_count: recharges.length,
+            total_amount: Math.round(totalAmount * 100) / 100,
+            total_gift: Math.round(totalGift * 100) / 100
+        })
+    });
+
+    console.log(`  已上传 ${uploaded} 条充值记录`);
+    return uploaded;
+}
+
+/**
+ * 主同步函数 - 充值记录
+ */
+async function syncRechargeRecords(startDate, endDate) {
+    console.log('========================================');
+    console.log('充值记录同步');
+    console.log(`日期范围: ${startDate} 至 ${endDate}`);
+    console.log('========================================\n');
+
+    try {
+        // 1. 登录
+        const token = await login();
+
+        // 2. 生成日期列表
+        const dates = generateDateRange(startDate, endDate);
+        console.log(`\n将同步 ${dates.length} 天的数据\n`);
+
+        let totalRecords = 0;
+
+        // 3. 逐日同步
+        for (const date of dates) {
+            console.log(`\n--- 处理 ${date} ---`);
+
+            // 计算时间戳
+            const startTime = dateToTimestamp(date, false);
+            const endTime = dateToTimestamp(date, true);
+
+            // 获取当天数据
+            const records = await fetchAllRecharges(token, startTime, endTime);
+
+            if (records.length === 0) {
+                console.log('  当天无充值记录');
+                continue;
+            }
+
+            // 转换数据
+            const recharges = transformRechargeRecords(records);
+            console.log(`  转换得到 ${recharges.length} 条有效记录`);
+
+            // 保存到数据库
+            const saved = await saveRechargesToSupabase(recharges, date);
+            totalRecords += saved;
+        }
+
+        console.log('\n========================================');
+        console.log(`同步完成！共上传 ${totalRecords} 条充值记录`);
+        console.log('========================================');
+
+        return { success: true, total: totalRecords };
+
+    } catch (error) {
+        console.error('同步失败:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 // 导出供浏览器使用
 if (typeof window !== 'undefined') {
     window.syncProductSales = syncProductSales;
@@ -630,6 +871,11 @@ if (typeof window !== 'undefined') {
     window.saveSessionsToSupabase = saveSessionsToSupabase;
     window.syncSessionRecords = syncSessionRecords;
     window.dateToTimestamp = dateToTimestamp;
+    // 充值记录同步函数
+    window.fetchAllRecharges = fetchAllRecharges;
+    window.transformRechargeRecords = transformRechargeRecords;
+    window.saveRechargesToSupabase = saveRechargesToSupabase;
+    window.syncRechargeRecords = syncRechargeRecords;
 }
 
 // Node.js 命令行执行

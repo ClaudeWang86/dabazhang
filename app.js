@@ -29,6 +29,9 @@ let sessionSyncDateRange = { start: null, end: null };
 let unifiedSyncDatePickerInstance = null;
 let unifiedSyncDateRange = { start: null, end: null };
 
+// 充值记录数据存储
+let rechargeAvailableDates = [];
+
 // DOM 元素
 const fileInput = document.getElementById('fileInput');
 const uploadBox = document.getElementById('uploadBox');
@@ -72,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await testConnection();
     await loadAvailableDates();
     await loadProductAvailableDates();
+    await loadRechargeAvailableDates();
     initUnifiedDatePicker();
 });
 
@@ -2802,6 +2806,29 @@ function hasSessionDataForDate(date) {
     return availableDates.some(d => d.date === date);
 }
 
+// 检查某个日期是否已有充值数据
+function hasRechargeDataForDate(date) {
+    return rechargeAvailableDates.some(d => d.date === date);
+}
+
+// 加载充值记录日期数据
+async function loadRechargeAvailableDates() {
+    try {
+        const { data, error } = await db
+            .from('recharge_dates')
+            .select('date, record_count, total_amount, total_gift')
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+
+        rechargeAvailableDates = data || [];
+        console.log('已加载充值日期数据:', rechargeAvailableDates.length, '天');
+    } catch (err) {
+        console.error('加载充值日期失败:', err);
+        rechargeAvailableDates = [];
+    }
+}
+
 // 开始上机 API 同步
 async function startSessionApiSync() {
     if (!sessionSyncDateRange.start || !sessionSyncDateRange.end) {
@@ -2935,10 +2962,11 @@ function initUnifiedSyncDatePicker() {
     const weekAgo = new Date(yesterday);
     weekAgo.setDate(weekAgo.getDate() - 6);
 
-    // 合并上机数据和商品数据的已有日期
+    // 合并上机数据、商品数据和充值数据的已有日期
     const sessionDates = availableDates.map(d => d.date);
     const productDates = productAvailableDates.map(d => d.date);
-    const allDatesToMark = [...new Set([...sessionDates, ...productDates])];
+    const rechargeDates = rechargeAvailableDates.map(d => d.date);
+    const allDatesToMark = [...new Set([...sessionDates, ...productDates, ...rechargeDates])];
 
     // 开始日期选择器
     flatpickr('#unifiedSyncStartDate', {
@@ -3013,7 +3041,7 @@ function updateUnifiedSyncButtonState() {
     }
 }
 
-// 开始统一 API 同步（先上机数据，再商品销售）
+// 开始统一 API 同步（上机数据 → 商品销售 → 充值记录）
 async function startUnifiedApiSync() {
     if (!unifiedSyncDateRange.start || !unifiedSyncDateRange.end) {
         alert('请先选择同步日期范围');
@@ -3034,6 +3062,11 @@ async function startUnifiedApiSync() {
     const productProgressFill = document.getElementById('productSyncProgressFill');
     const productProgressText = document.getElementById('productSyncProgressText');
 
+    const rechargeStep = document.getElementById('rechargeSyncStep');
+    const rechargeStatus = document.getElementById('rechargeSyncStatus');
+    const rechargeProgressFill = document.getElementById('rechargeSyncProgressFill');
+    const rechargeProgressText = document.getElementById('rechargeSyncProgressText');
+
     startBtn.disabled = true;
     progressDiv.classList.remove('hidden');
     resultDiv.classList.add('hidden');
@@ -3041,15 +3074,20 @@ async function startUnifiedApiSync() {
     // 重置状态
     sessionStep.className = 'sync-step';
     productStep.className = 'sync-step';
+    if (rechargeStep) rechargeStep.className = 'sync-step';
     sessionProgressFill.style.width = '0%';
     productProgressFill.style.width = '0%';
+    if (rechargeProgressFill) rechargeProgressFill.style.width = '0%';
     sessionProgressText.textContent = '';
     productProgressText.textContent = '';
+    if (rechargeProgressText) rechargeProgressText.textContent = '';
     sessionStatus.textContent = '等待中';
     productStatus.textContent = '等待中';
+    if (rechargeStatus) rechargeStatus.textContent = '等待中';
 
     let sessionResult = { success: false, records: 0, days: 0 };
     let productResult = { success: false, records: 0, days: 0 };
+    let rechargeResult = { success: false, records: 0, days: 0 };
 
     try {
         // ========== 第一阶段：同步上机数据 ==========
@@ -3137,6 +3175,51 @@ async function startUnifiedApiSync() {
             productResult = { success: true, records: totalProducts, days: syncedDays };
         }
 
+        // ========== 第三阶段：同步充值记录 ==========
+        if (rechargeStep) {
+            rechargeStep.className = 'sync-step active';
+            rechargeStatus.textContent = '同步中';
+
+            const rechargeDatesToSync = allDates.filter(date => !hasRechargeDataForDate(date));
+
+            if (rechargeDatesToSync.length === 0) {
+                rechargeProgressFill.style.width = '100%';
+                rechargeProgressText.textContent = '所有日期已有数据，跳过';
+                rechargeStatus.textContent = '已跳过';
+                rechargeStep.className = 'sync-step completed';
+                rechargeResult.success = true;
+            } else {
+                rechargeProgressText.textContent = '正在登录...';
+                const token = await login();
+
+                let totalRecharges = 0;
+                let syncedDays = 0;
+
+                for (let i = 0; i < rechargeDatesToSync.length; i++) {
+                    const date = rechargeDatesToSync[i];
+                    rechargeProgressText.textContent = `同步 ${date}... (${i + 1}/${rechargeDatesToSync.length})`;
+                    rechargeProgressFill.style.width = `${((i + 1) / rechargeDatesToSync.length) * 100}%`;
+
+                    const startTime = dateToTimestamp(date, false);
+                    const endTime = dateToTimestamp(date, true);
+                    const records = await fetchAllRecharges(token, startTime, endTime);
+
+                    if (records.length > 0) {
+                        const recharges = transformRechargeRecords(records);
+                        const saved = await saveRechargesToSupabase(recharges, date);
+                        totalRecharges += saved;
+                        syncedDays++;
+                    }
+                }
+
+                rechargeProgressFill.style.width = '100%';
+                rechargeProgressText.textContent = `完成: ${totalRecharges} 条记录, ${syncedDays} 天`;
+                rechargeStatus.textContent = '完成';
+                rechargeStep.className = 'sync-step completed';
+                rechargeResult = { success: true, records: totalRecharges, days: syncedDays };
+            }
+        }
+
         // 显示结果
         resultDiv.classList.remove('hidden');
         resultDiv.className = 'sync-result success';
@@ -3145,10 +3228,11 @@ async function startUnifiedApiSync() {
             <p>日期范围: ${unifiedSyncDateRange.start} 至 ${unifiedSyncDateRange.end}</p>
             <p>上机数据: ${sessionResult.records} 条记录 (${sessionResult.days} 天)</p>
             <p>商品销售: ${productResult.records} 条记录 (${productResult.days} 天)</p>
+            <p>充值记录: ${rechargeResult.records} 条记录 (${rechargeResult.days} 天)</p>
         `;
 
         // 刷新日期数据
-        await Promise.all([loadAvailableDates(), loadProductAvailableDates()]);
+        await Promise.all([loadAvailableDates(), loadProductAvailableDates(), loadRechargeAvailableDates()]);
         if (unifiedDatePickerInstance) {
             unifiedDatePickerInstance.destroy();
             initUnifiedDatePicker();
@@ -3166,6 +3250,10 @@ async function startUnifiedApiSync() {
             productStep.className = 'sync-step error';
             productStatus.textContent = '失败';
             productProgressText.textContent = error.message;
+        } else if (rechargeStep && rechargeStep.classList.contains('active')) {
+            rechargeStep.className = 'sync-step error';
+            rechargeStatus.textContent = '失败';
+            rechargeProgressText.textContent = error.message;
         }
 
         resultDiv.classList.remove('hidden');
