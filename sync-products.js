@@ -371,20 +371,23 @@ function dateToTimestamp(dateStr, isEndOfDay = false) {
 }
 
 /**
- * 将 Unix 时间戳转换为 ISO 日期时间字符串（保留北京时间，不转换为 UTC）
+ * 将 Unix 时间戳转换为日期时间字符串（北京时间，不带时区后缀）
+ * API 返回的时间戳代表北京时间，直接转换保存，不做任何时区处理
  */
 function timestampToISO(timestamp) {
     if (!timestamp) return null;
-    const date = new Date(timestamp * 1000);
-    // 格式化为 ISO 字符串，保留本地时区（北京时间 +08:00）
+    // 加上 8 小时偏移，将 UTC 时间戳转为北京时间
+    const beijingOffset = 8 * 60 * 60 * 1000;
+    const date = new Date(timestamp * 1000 + beijingOffset);
     const pad = n => String(n).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const seconds = pad(date.getSeconds());
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+08:00`;
+    const year = date.getUTCFullYear();
+    const month = pad(date.getUTCMonth() + 1);
+    const day = pad(date.getUTCDate());
+    const hours = pad(date.getUTCHours());
+    const minutes = pad(date.getUTCMinutes());
+    const seconds = pad(date.getUTCSeconds());
+    // 不带时区后缀，数据库会原样存储
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
 /**
