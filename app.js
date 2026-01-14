@@ -239,8 +239,14 @@ async function loadUnifiedData() {
         document.getElementById('analysisSubtabsSection')?.classList.remove('hidden');
         showSidebarSubnav();
 
-        // 处理用户画像数据
+        // 处理用户画像数据并重新渲染
         processUserProfileData();
+
+        // 如果当前在用户画像页面，重新渲染图表
+        const userProfileSubcontent = document.getElementById('userProfileSubcontent');
+        if (userProfileSubcontent?.classList.contains('active')) {
+            renderUserProfile();
+        }
 
     } catch (err) {
         console.error('加载数据失败:', err);
@@ -273,8 +279,14 @@ async function loadAllData() {
         document.getElementById('analysisSubtabsSection')?.classList.remove('hidden');
         showSidebarSubnav();
 
-        // 处理用户画像数据
+        // 处理用户画像数据并重新渲染
         processUserProfileData();
+
+        // 如果当前在用户画像页面，重新渲染图表
+        const userProfileSubcontent = document.getElementById('userProfileSubcontent');
+        if (userProfileSubcontent?.classList.contains('active')) {
+            renderUserProfile();
+        }
 
     } catch (err) {
         console.error('加载数据失败:', err);
