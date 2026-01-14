@@ -2979,22 +2979,32 @@ function processRechargeData() {
         return;
     }
 
-    // pay_channel=30 是押金操作，不计入充值收入
+    // pay_channel=30 是押金操作
     const isDepositOperation = (r) => {
         const pc = Number(r.pay_channel);
         return pc === 30;
     };
 
-    // 计算订单的实际金额（订单金额 - 退款金额，押金操作不计入）
+    // 计算订单的实际金额
     const getNetAmount = (r) => {
-        if (isDepositOperation(r)) return 0;  // 押金操作不计入收入
         const orderFee = parseFloat(r.order_fee) || 0;
         const refundFee = parseFloat(r.refund_fee) || 0;
+
+        // 押金操作 (ordertype=30): orderfee + deposit
+        if (isDepositOperation(r)) {
+            const deposit = parseFloat(r.deposit) || 0;
+            return orderFee + deposit;
+        }
+
+        // 所有其他订单: orderfee - refundFee
+        // state=3 (已完成): orderfee - 0 = orderfee
+        // state=4 (全额退款): orderfee - refundFee = 0
+        // state=9 (部分退款): orderfee - refundFee
         return orderFee - refundFee;
     };
 
-    // 过滤掉押金操作的记录用于统计
-    const revenueRecords = rechargeRawData.filter(r => !isDepositOperation(r));
+    // 所有记录都参与统计
+    const revenueRecords = rechargeRawData;
 
     // 基础统计（使用 Math.round 避免浮点数精度问题）
     const totalAmount = Math.round(revenueRecords.reduce((sum, r) => sum + getNetAmount(r), 0) * 100) / 100;
