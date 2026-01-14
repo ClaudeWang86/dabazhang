@@ -3487,10 +3487,12 @@ function initUnifiedSyncDatePicker() {
     // 初始化删除日期选择器
     initSessionDeleteDatePickers();
     initProductDeleteDatePickers();
+    initRechargeDeleteDatePickers();
 
     // 绑定删除按钮事件
     setupSessionDeleteButtons();
     setupProductDeleteButtons();
+    setupRechargeDeleteButtons();
 
     // 绑定统一同步按钮事件
     const syncBtn = document.getElementById('startUnifiedSyncBtn');
@@ -4362,6 +4364,7 @@ function renderProfitRateChart() {
 // 删除日期范围状态
 let sessionDeleteDateRange = { start: null, end: null };
 let productDeleteDateRange = { start: null, end: null };
+let rechargeDeleteDateRange = { start: null, end: null };
 
 // 初始化上机数据删除日期选择器
 function initSessionDeleteDatePickers() {
@@ -4709,6 +4712,176 @@ async function deleteAllProductData() {
     }
 }
 
+// =====================================================
+// 充值数据删除功能
+// =====================================================
+
+// 初始化充值数据删除日期选择器
+function initRechargeDeleteDatePickers() {
+    const startInput = document.getElementById('rechargeDeleteStartDate');
+    const endInput = document.getElementById('rechargeDeleteEndDate');
+    const deleteBtn = document.getElementById('deleteRechargeRangeBtn');
+
+    if (!startInput || !endInput) return;
+
+    // 获取有数据的日期列表
+    const datesToMark = rechargeAvailableDates.map(d => d.date);
+
+    flatpickr(startInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        enable: datesToMark,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            rechargeDeleteDateRange.start = dateStr;
+            updateRechargeDeleteButtonState();
+        }
+    });
+
+    flatpickr(endInput, {
+        dateFormat: 'Y-m-d',
+        locale: 'zh',
+        maxDate: 'today',
+        enable: datesToMark,
+        onDayCreate: function(dObj, dStr, fp, dayElem) {
+            const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+            if (datesToMark.includes(dateStr)) {
+                dayElem.classList.add('has-data');
+            }
+        },
+        onChange: (selectedDates, dateStr) => {
+            rechargeDeleteDateRange.end = dateStr;
+            updateRechargeDeleteButtonState();
+        }
+    });
+}
+
+// 更新充值删除按钮状态
+function updateRechargeDeleteButtonState() {
+    const deleteBtn = document.getElementById('deleteRechargeRangeBtn');
+    if (deleteBtn) {
+        deleteBtn.disabled = !(rechargeDeleteDateRange.start && rechargeDeleteDateRange.end);
+    }
+}
+
+// 设置充值删除按钮事件
+function setupRechargeDeleteButtons() {
+    const rangeBtn = document.getElementById('deleteRechargeRangeBtn');
+    const allBtn = document.getElementById('deleteAllRechargeBtn');
+
+    if (rangeBtn && !rangeBtn._listenerAdded) {
+        rangeBtn.addEventListener('click', deleteRechargeDataByRange);
+        rangeBtn._listenerAdded = true;
+    }
+    if (allBtn && !allBtn._listenerAdded) {
+        allBtn.addEventListener('click', deleteAllRechargeData);
+        allBtn._listenerAdded = true;
+    }
+}
+
+// 删除指定日期范围的充值数据
+async function deleteRechargeDataByRange() {
+    if (!rechargeDeleteDateRange.start || !rechargeDeleteDateRange.end) {
+        alert('请选择要删除的日期范围');
+        return;
+    }
+
+    const confirmMsg = `确定要删除 ${rechargeDeleteDateRange.start} 至 ${rechargeDeleteDateRange.end} 的充值数据吗？\n\n此操作不可撤销！`;
+    if (!confirm(confirmMsg)) return;
+
+    const deleteBtn = document.getElementById('deleteRechargeRangeBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+        };
+
+        // 删除 recharges 表中的数据
+        const startTime = `${rechargeDeleteDateRange.start}T00:00:00+08:00`;
+        const endTime = `${rechargeDeleteDateRange.end}T23:59:59+08:00`;
+        await fetch(`${supabaseUrl}/recharges?create_time=gte.${encodeURIComponent(startTime)}&create_time=lte.${encodeURIComponent(endTime)}`, {
+            method: 'DELETE',
+            headers
+        });
+
+        // 删除 recharge_dates 表中的数据
+        await fetch(`${supabaseUrl}/recharge_dates?date=gte.${rechargeDeleteDateRange.start}&date=lte.${rechargeDeleteDateRange.end}`, {
+            method: 'DELETE',
+            headers
+        });
+
+        alert(`已删除 ${rechargeDeleteDateRange.start} 至 ${rechargeDeleteDateRange.end} 的充值数据`);
+        loadRechargeAvailableDates();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span>删除</span>
+        `;
+    }
+}
+
+// 删除所有充值数据
+async function deleteAllRechargeData() {
+    const confirmMsg = '确定要删除所有充值数据吗？\n\n⚠️ 此操作将清空数据库中的所有充值记录，不可撤销！\n\n请输入 "DELETE" 确认：';
+    const input = prompt(confirmMsg);
+    if (input !== 'DELETE') {
+        alert('操作已取消');
+        return;
+    }
+
+    const deleteBtn = document.getElementById('deleteAllRechargeBtn');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<span>删除中...</span>';
+
+    try {
+        const config = getSupabaseConfig();
+        const supabaseUrl = `${config.url}/rest/v1`;
+        const headers = {
+            'apikey': config.key,
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json'
+        };
+
+        // 删除所有 recharges 数据
+        await fetch(`${supabaseUrl}/recharges?order_id=neq.null`, { method: 'DELETE', headers });
+
+        // 删除所有 recharge_dates 数据
+        await fetch(`${supabaseUrl}/recharge_dates?date=gt.2000-01-01`, { method: 'DELETE', headers });
+
+        alert('已删除所有充值数据');
+        loadRechargeAvailableDates();
+    } catch (err) {
+        alert('删除失败: ' + err.message);
+    } finally {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span>删除所有充值数据</span>
+        `;
+    }
+}
+
 // 获取 Supabase 配置（与 sync-products.js 一致）
 function getSupabaseConfig() {
     if (typeof SUPABASE_URL !== 'undefined' && typeof SUPABASE_ANON_KEY !== 'undefined') {
@@ -4729,6 +4902,10 @@ function setupDeleteButtons() {
     // 商品数据删除
     document.getElementById('deleteProductRangeBtn')?.addEventListener('click', deleteProductDataByRange);
     document.getElementById('deleteAllProductBtn')?.addEventListener('click', deleteAllProductData);
+
+    // 充值数据删除
+    document.getElementById('deleteRechargeRangeBtn')?.addEventListener('click', deleteRechargeDataByRange);
+    document.getElementById('deleteAllRechargeBtn')?.addEventListener('click', deleteAllRechargeData);
 }
 
 // =====================================================
